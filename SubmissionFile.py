@@ -1,70 +1,104 @@
-# from part import *
-# from material import *
-# from section import *
-# from assembly import *
-# from step import *
-# from interaction import *
-# from load import *
-# from mesh import *
-# from optimization import *
-# from job import *
-# from sketch import *
-# from visualization import *
-# from connectorBehavior import *
 from abaqus import *
 from abaqusConstants import *
-import numpy as np
-import os
 from PostProcessing import *
-from ZhangEtAlValidation import *
-import time
+from ProgressiveLoading.ProgressiveLoadScratchTest import ScratchModelSetup
+from ProgressiveLoading.SubstrateMaterial import SubstrateMaterialAssignment
+from itertools import product
 
-# mdb.close()
-yield_stress_sweep = [
-    200.0,
-    300.0,
-    500.0,
-    600.0,
-    800.0,
-    900.0,
-    1100.0,
-    1200.0,
-    1400.0,
-    1500.0,
-    1700.0,
-    1800.0,
-    2000.0,
-]
-strain_hardening_sweep = np.arange(0.1, 0.6, 0.2)
+
 depth = -50e-3
-friction_coefficient = (
-    0.0  # does nothing currently as tangential contact is frictionless
-)
+friction_coefficient = 0.0
+
+# Material elastic prpperties
 E_modulus = 200000.0
 density = 7.8e-9
+
+# Material density
 poisson = 0.3
-jobName = "ExplicitRigidIndenterScratch"
-for sigma_y in yield_stress_sweep:
-    for n in strain_hardening_sweep:
-        print(sigma_y, n)
-        # Call model and run model
-        ScratchModelParameterSweep(
-            jobName=jobName,
-            sigma_y=sigma_y,
-            strain_hardening_index=n,
-            depth=depth,
-            friction_coefficient=friction_coefficient,
-            E_modulus=E_modulus,
-            density=density,
-            poisson=poisson,
-        )
-        # Do post processing
-        PostProcess(
-            sigma_y=sigma_y,
-            strain_hardening_index=n,
-            depth=depth,
-            friction_coefficient=friction_coefficient,
-            E_modulus=E_modulus,
-            density=density,
-            poisson=poisson,
-        )
+
+# Material hardening properties - Isotropic hardening
+# yield_stress_sweep = [200.0]
+# strain_hardening_sweep = [0.2]
+# materialIterationProduct = product(yield_stress_sweep, strain_hardening_sweep)
+
+# Material hardening properties - Johnson-Cook
+A = [200.0]
+B = [100.0]
+n = [0.2]
+m = 0.0
+Tm = 0.0
+Tt = 0.0
+materialIterationProduct = product(A, B, n)
+
+# Parallelisation
+num_cpus = 6
+num_domains = num_cpus
+
+ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
+    depth=depth,
+)
+
+for arg in materialIterationProduct:
+
+    material = SubstrateMaterialAssignment(
+        ScratchModel,
+        SubstratePart,
+        SubstrateSet,
+        rho=density,
+        youngs_modulus=E_modulus,
+        poisson_ratio=poisson,
+    )
+    # material.IsotrpopicHardening(yield_strength=arg[0], n=arg[1])
+    material.JohnsonCookHardening(A=arg[0], B=arg[1], n=arg[2], m=m, Tm=Tm, Tt=Tt)
+    material.SectionAssignment()
+
+    jobName = "ProgressiveLoadScratchTest"
+
+    #### ------------------------------ ####
+    #           Create Job
+    #### ------------------------------ ####
+    mdb.Job(
+        activateLoadBalancing=False,
+        atTime=None,
+        contactPrint=OFF,
+        description="",
+        echoPrint=OFF,
+        explicitPrecision=SINGLE,
+        historyPrint=OFF,
+        memory=90,
+        memoryUnits=PERCENTAGE,
+        model="Model-1",
+        modelPrint=OFF,
+        multiprocessingMode=MPI,
+        name=jobName,
+        nodalOutputPrecision=SINGLE,
+        numCpus=num_cpus,
+        numDomains=num_domains,
+        parallelizationMethodExplicit=DOMAIN,
+        queue=None,
+        resultsFormat=ODB,
+        scratch="",
+        type=ANALYSIS,
+        userSubroutine="",
+        waitHours=0,
+        waitMinutes=0,
+    )
+
+    #### ------------------------------ ####
+    #             Submit Job
+    #### ------------------------------ ####
+    mdb.jobs[jobName].submit(consistencyChecking=OFF)
+    mdb.jobs[jobName].waitForCompletion()
+
+    # PostProcess(
+    #     jobName,
+    #     sigma_y=sigma_y,
+    #     strain_hardening_index=n,
+    #     depth=depth,
+    #     friction_coefficient=friction_coefficient,
+    #     E_modulus=E_modulus,
+    #     density=density,
+    #     poisson=poisson,
+    # )
+
+mdb.close()
