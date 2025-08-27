@@ -28,6 +28,16 @@ n = [0.2]
 m = 0.0
 Tm = 0.0
 Tt = 0.0
+
+# Material damage model - Johnson-Cook damage initiation
+d1 = 0.028
+d2 = 1
+d3 = -0.916
+d4 = 0
+d5 = 0
+Sr = 0
+
+
 materialIterationProduct = product(A, B, n)
 
 # Parallelisation
@@ -36,6 +46,7 @@ num_domains = num_cpus
 
 ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
     depth=depth,
+    IndenterToUse="RockwellIndenter",
 )
 
 for arg in materialIterationProduct:
@@ -50,6 +61,7 @@ for arg in materialIterationProduct:
     )
     # material.IsotrpopicHardening(yield_strength=arg[0], n=arg[1])
     material.JohnsonCookHardening(A=arg[0], B=arg[1], n=arg[2], m=m, Tm=Tm, Tt=Tt)
+    # material.JohnsonCookDamage(d1=d1, d2=d2, d3=d3, d4=d4, d5=d5, Tm=Tm, Tt=Tt, Sr=Sr)
     material.SectionAssignment()
 
     jobName = "ProgressiveLoadScratchTest"
