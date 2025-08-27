@@ -1,4 +1,22 @@
-def RockwellIndenter(R, theta):
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+from odbAccess import *
+
+
+def RockwellIndenter(
+    Model, meshMinSize, meshMaxSize, R=0.2, theta=60.0, sheet_size=10.0
+):
     """
     Make a Rockwell indenter.
 
@@ -8,3 +26,193 @@ def RockwellIndenter(R, theta):
 
     Returns:
     """
+
+    IndenterName = "RockwellIndenter"
+    Model.ConstrainedSketch(name="__profile__", sheetSize=sheet_size)
+    Sketch = Model.sketches["__profile__"]
+
+    # Geometry coordinates for indenter
+    xc1 = 0.0  # x coordinate of center of spherical tip
+    yc1 = 0.0  # y coordinate of center of spherical tip
+    xc2 = R * cos(-theta * pi / 180)  # x coordinate of sphere end point
+    yc2 = R + R * sin(-theta * pi / 180)  # y coordinate of sphere end point
+    xc3 = R * cos(
+        (-theta - (90 - theta) / 2.0) * pi / 180
+    )  # x coordinate of shpere mid point
+    yc3 = R + R * sin(
+        (-theta - (90 - theta) / 2.0) * pi / 180
+    )  # y coordinate of sphere mid point
+
+    # xc3 = (xc2+xc1)/2.0
+    # yc3 = sqrt(R**2 - xc3**2)
+
+    xl1 = xc2  # line x coorcinate 1
+    yl1 = yc2  # line y coordinate 1
+
+    xl2 = xl1 + 0.3 * cos((90 - theta) * pi / 180)  # line x coordinate 2
+    yl2 = yl1 + 0.3 * sin((90 - theta) * pi / 180)  # line y coordinate 2
+
+    # Make sketch
+    Sketch.ConstructionLine(point1=(0.0, -5.0), point2=(0.0, 5.0))
+    Sketch.FixedConstraint(
+        entity=Sketch.geometry.findAt(
+            (0.0, 0.0),
+        )
+    )
+
+    # Make construction line for horizontal axis
+    Sketch.ConstructionLine(point1=(0.0, 0.0), point2=(1.0, 0.0))
+    Sketch.HorizontalConstraint(
+        addUndoState=False,
+        entity=Sketch.geometry.findAt(
+            (0.5, 0.0),
+        ),
+    )
+    Sketch.FixedConstraint(
+        entity=Sketch.geometry.findAt(
+            (1.0, 0.0),
+        )
+    )
+
+    # make arc for spherical tip
+    Sketch.ArcByCenterEnds(center=(0.0, R), point1=(xc1, yc1), point2=(xc2, yc2))
+    # ArcByCenterEnds(center=(0.0, 10.0), direction=COUNTERCLOCKWISE, point1=(0.0, 0.0), point2=(10.0, 2.5))
+
+    Sketch.CoincidentConstraint(
+        entity1=Sketch.vertices.findAt(
+            (xc1, yc1),
+        ),
+        entity2=Sketch.geometry.findAt(
+            (0.5, 0.0),
+        ),
+    )
+    Sketch.CoincidentConstraint(
+        entity1=Sketch.vertices.findAt(
+            (xc1, yc1),
+        ),
+        entity2=Sketch.geometry.findAt(
+            (0.0, 1.0),
+        ),
+    )
+
+    # make lines for conical part
+    Sketch.Line(point1=(xl1, yl1), point2=(xl2, yl2))
+
+    # angle of conical part
+    # Sketch.AngularDimension(
+    #     line1=Sketch.geometry.findAt(
+    #         (0.0, 1.0),
+    #     ),
+    #     line2=Sketch.geometry.findAt(
+    #         (xl1, yl1),
+    #     ),
+    #     textPoint=(0.812108516693115, 0.7),
+    #     value=indenter_angle,
+    # )
+
+    # Make construction line tangent to spherical tip
+    # Sketch.TangentConstraint(
+    #     entity1=Sketch.geometry.findAt(
+    #         (1.0, 0.0),
+    #     ),
+    #     entity2=Sketch.geometry.findAt(
+    #         (xc2, yc2),
+    #     ),
+    # )
+
+    # Make conical line tangent to spherical tip
+    Sketch.TangentConstraint(
+        entity1=Sketch.geometry.findAt(
+            (xl2, yl2),
+        ),
+        entity2=Sketch.geometry.findAt(
+            (xc3, yc3),
+        ),
+    )
+
+    # Make conical line coincident with spherical tip
+    Sketch.CoincidentConstraint(
+        entity1=Sketch.vertices.findAt(
+            (xl1, yl1),
+        ),
+        entity2=Sketch.vertices.findAt(
+            (xc2, yc2),
+        ),
+    )
+
+    # set radius of spherical tip
+    # Sketch.RadialDimension(
+    #     curve=Sketch.geometry.findAt(
+    #         (xc3, yc3),
+    #     ),
+    #     radius=R,
+    #     textPoint=(0.330665588378906, 0.729206442832947),
+    # )
+    # Revolve to make 3D part
+    Sketch.sketchOptions.setValues(constructionGeometry=ON)
+    Sketch.assignCenterline(
+        line=Sketch.geometry.findAt(
+            (0.0, 1.0),
+        )
+    )
+    Model.Part(dimensionality=THREE_D, name=IndenterName, type=DISCRETE_RIGID_SURFACE)
+    Model.parts[IndenterName].BaseShellRevolve(
+        angle=360.0,
+        flipRevolveDirection=OFF,
+        sketch=Sketch,
+    )
+    del Sketch
+    IndenterPart = Model.parts[IndenterName]
+
+    #### ------------------------------ ####
+    #         Materials Indenter
+    #### ------------------------------ ####
+    # Creating reference point and inertia for indenter
+    indenter_set = IndenterName + "Set"
+    IndenterPart.ReferencePoint(
+        point=IndenterPart.vertices.findAt(
+            (xc1, yc1, 0.0),
+        )
+    )
+    IndenterPart.Set(
+        name=indenter_set, referencePoints=(IndenterPart.referencePoints[2],)
+    )
+    IndenterPart.engineeringFeatures.PointMassInertia(
+        alpha=0.0,
+        composite=0.0,
+        i11=0.1,
+        i22=0.1,
+        i33=0.1,
+        mass=1.0,
+        name="IndenterInertia",
+        region=IndenterPart.sets[indenter_set],
+    )
+
+    #### ------------------------------ ####
+    #             Meshing
+    #### ------------------------------ ####
+    IndenterPart.setMeshControls(
+        regions=IndenterPart.faces.findAt(
+            ((xc1, yc1, 0.0),),
+            ((xl2, yl2, 0.0),),
+        ),
+        technique=SWEEP,
+    )
+    IndenterPart.seedEdgeByBias(
+        biasMethod=SINGLE,
+        constraint=FINER,
+        end2Edges=IndenterPart.edges.findAt(((xc1, yc1, 0.0),)),
+        maxSize=meshMaxSize,
+        minSize=meshMinSize,
+    )
+
+    IndenterPart.seedEdgeBySize(
+        constraint=FINER,
+        deviationFactor=0.1,
+        edges=IndenterPart.edges.findAt((((xl1 + xl2) / 2.0, (yl1 + yl2) / 2.0, 0.0),)),
+        size=meshMaxSize,
+    )
+
+    IndenterPart.generateMesh()
+
+    return Model, IndenterPart, indenter_set, IndenterName

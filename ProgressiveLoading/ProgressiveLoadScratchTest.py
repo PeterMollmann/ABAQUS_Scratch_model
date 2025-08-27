@@ -12,17 +12,14 @@ from sketch import *
 from visualization import *
 from connectorBehavior import *
 from odbAccess import *
-import os
-import numpy as np
 from PyramidIndenter import PyramidIndenter
-from SubstrateGeneration import (
-    SubstrateGeneration,
-    SubstrateMeshing,
-)
+from RockwellIndenter import RockwellIndenter
+from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
 
 
 def ScratchModelSetup(
     depth=-50e-3,
+    IndenterToUse="RockwellIndenter",  # Options are "RockwellIndenter" or "PyramidIndenter"
 ):
     ### Remember to use consistent units! This document uses SI(mm) units ###
 
@@ -49,12 +46,12 @@ def ScratchModelSetup(
     dpo_y = 0.10
 
     # Meshing parameters
-    IndenterMinSize = 0.001
+    IndenterMinSize = 0.0025
     IndenterMaxSize = 0.025
 
-    SubstrateSizeY = 0.025
-    SubstrateSizeX = 0.02
-    SubstrateSizeZ = 0.04
+    SubstrateSizeY = 0.02
+    SubstrateSizeX = 0.01
+    SubstrateSizeZ = 0.02
 
     CoarseMeshSize0 = 0.05
     CoarseMeshSize1 = 0.15
@@ -62,14 +59,14 @@ def ScratchModelSetup(
 
     # Analysis time
     indentation_time = 0.0001  # [s]
-    scratch_time = 0.001  # [s]
+    scratch_time = 0.01  # [s] 0.005
 
     # Scratch parameters
     scratch_depth = depth  # [mm]
     scratch_length = 5  # [mm]
 
-    sample_frequency_indentation = indentation_time / 1.0
-    sample_frequency_scratching = scratch_time / 1.0
+    sample_frequency_indentation = indentation_time / 5.0
+    sample_frequency_scratching = scratch_time / 5.0
     sample_force_frequency_scratching = scratch_time / 100.0
     mass_scale = 1e4
 
@@ -106,16 +103,26 @@ def ScratchModelSetup(
     )
 
     # Create and mesh indenter
-    ScratchModel, IndenterPart, indenter_set, IndenterName, indenterHeight = (
-        PyramidIndenter(
+    if IndenterToUse == "RockwellIndenter":
+        ScratchModel, IndenterPart, indenter_set, IndenterName = RockwellIndenter(
             ScratchModel,
-            xs2,
-            ys2,
-            IndenterMaxSize,
             IndenterMinSize,
+            IndenterMaxSize,
+            R=0.2,
+            theta=60.0,
             sheet_size=sheet_size,
         )
-    )
+    elif IndenterToUse == "PyramidIndenter":
+        ScratchModel, IndenterPart, indenter_set, IndenterName, indenterHeight = (
+            PyramidIndenter(
+                ScratchModel,
+                xs2,
+                ys2,
+                IndenterMaxSize,
+                IndenterMinSize,
+                sheet_size=sheet_size,
+            )
+        )
 
     #### ------------------------------ ####
     #            Assembly
@@ -132,15 +139,22 @@ def ScratchModelSetup(
         dependent=ON, name=specimenInstanceName, part=SubstratePart
     )
     SpecimenInstance = ScratchModelAssembly.instances[specimenInstanceName]
-    ScratchModelAssembly.translate(
-        instanceList=(indenterInstanceName,), vector=(0.0, 0.0, -indenterHeight)
-    )
-    ScratchModelAssembly.rotate(
-        angle=90.0,
-        axisDirection=(10.0, 0.0, 0.0),
-        axisPoint=(xs1, ys2, zs1),
-        instanceList=(indenterInstanceName,),
-    )
+
+    if IndenterName == "PyramidIndenter":
+        ScratchModelAssembly.translate(
+            instanceList=(indenterInstanceName,), vector=(0.0, 0.0, -indenterHeight)
+        )
+        ScratchModelAssembly.rotate(
+            angle=90.0,
+            axisDirection=(10.0, 0.0, 0.0),
+            axisPoint=(xs1, ys2, zs1),
+            instanceList=(indenterInstanceName,),
+        )
+    elif IndenterName == "RockwellIndenter":
+        ScratchModelAssembly.translate(
+            instanceList=(indenterInstanceName,), vector=(0.0, ys2, 0.0)
+        )
+
     ScratchModelAssembly.translate(
         instanceList=(indenterInstanceName,),
         vector=(0.0, 0.0, (zs2 - scratch_length) / 2.0),
@@ -175,11 +189,11 @@ def ScratchModelSetup(
     )
 
     # Fixed constraint on the bottom two faces
-    fixedBCSet = "fixedBCSet"
+    fixedBCSet = "FIXEDBCSET"
     ScratchModelAssembly.Set(
         faces=SpecimenInstance.faces.findAt(
             ((dpo_x / 2.0, ys1, (zs2 + zs1) / 2.0),),
-            (((dpo_x + xs2) / 2.0, ys1, (zs2 + zs1) / 2.0),),
+            ((dpo_x + (xs2 - dpo_x) / 2.0, ys1, (zs2 + zs1) / 2.0),),
         ),
         name=fixedBCSet,
     )
@@ -207,9 +221,15 @@ def ScratchModelSetup(
     )
 
     # Defining the indenter movement bc
-    ScratchModelAssembly.Set(
-        name=indenter_set, referencePoints=(IndenterInstance.referencePoints[3],)
-    )
+    if IndenterName == "PyramidIndenter":
+        ScratchModelAssembly.Set(
+            name=indenter_set, referencePoints=(IndenterInstance.referencePoints[3],)
+        )
+    elif IndenterName == "RockwellIndenter":
+        ScratchModelAssembly.Set(
+            name=indenter_set, referencePoints=(IndenterInstance.referencePoints[2],)
+        )
+
     ScratchModel.TabularAmplitude(
         data=(
             (0.0, 0.0),
@@ -219,6 +239,15 @@ def ScratchModelSetup(
         ),
         name="Amp-1",
         smooth=SOLVER_DEFAULT,
+        timeSpan=TOTAL,
+    )
+    ScratchModel.SmoothStepAmplitude(
+        data=(
+            (0.0, 0.0),
+            (scratch_time, 1.0),
+            (indentation_time + scratch_time, 0.0),
+        ),
+        name="Amp-2",
         timeSpan=TOTAL,
     )
 
@@ -274,8 +303,26 @@ def ScratchModelSetup(
         createStepName=StepName1,
         name="FieldOutput",
         timeInterval=sample_frequency_scratching,
-        variables=PRESELECT,
+        variables=(
+            "A",
+            "CSTRESS",
+            "EVF",
+            "LE",
+            "PE",
+            "PEEQ",
+            "PEEQVAVG",
+            "PEVAVG",
+            "RF",
+            "S",
+            "SVAVG",
+            "U",
+            "V",
+            # "DUCTCRT",
+            "DAMAGEC",
+            "DAMAGET",
+        ),
     )
+
     # ScratchModel.FieldOutputRequest(
     #     createStepName=StepName1,
     #     name="ContactForce",
@@ -321,6 +368,14 @@ def ScratchModelSetup(
         constraintEnforcementMethod=DEFAULT,
         pressureOverclosure=HARD,
     )
+    # ScratchModel.interactionProperties["IntProp-1"].NormalBehavior(
+    #     constraintEnforcementMethod=DEFAULT,
+    #     contactStiffnessScaleFactor=2.0,
+    #     initialStiffnessScaleFactor=1.0,
+    #     overclosureFactor=1.0,
+    #     overclosureMeasure=0.0,
+    #     pressureOverclosure=SCALE_FACTOR,
+    # )
 
     # Use abaqus general contact
     ScratchModel.ContactExp(createStepName="Initial", name="Int-1")
