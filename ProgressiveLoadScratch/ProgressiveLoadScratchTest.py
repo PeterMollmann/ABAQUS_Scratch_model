@@ -20,6 +20,9 @@ from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
 def ScratchModelSetup(
     depth=-50e-3,
     IndenterToUse="RockwellIndenter",  # Options are "RockwellIndenter" or "PyramidIndenter"
+    SubstrateMeshSizeX=0.02,
+    SubstrateMeshSizeY=0.02,
+    SubstrateMeshSizeZ=0.04,
 ):
     """
     Sets up the scratch model with substrate and indenter parts, assembly,
@@ -34,6 +37,9 @@ def ScratchModelSetup(
     Args:
         depth (float): The depth of the scratch indentation in mm. Default is -50e-3 (i.e., -0.05 micrometer).
         IndenterToUse (str): Type of indenter to use. Options are "RockwellIndenter" or "PyramidIndenter". Default is "RockwellIndenter".
+        SubstrateMeshSizeX (float): Element size in the X direction for meshing the substrate. Default is 0.02 mm.
+        SubstrateMeshSizeY (float): Element size in the Y direction for meshing the substrate. Default is 0.02 mm.
+        SubstrateMeshSizeZ (float): Element size in the Z direction for meshing the substrate. Default is 0.04 mm.
 
     Returns:
         ScratchModel: The Abaqus model object with the complete scratch test setup.
@@ -60,12 +66,8 @@ def ScratchModelSetup(
     zs2 = 6.0  # z coordinate of second point - extrude depth
 
     # Meshing parameters
-    IndenterMinSize = 0.0025
-    IndenterMaxSize = 0.025
-
-    SubstrateSizeY = 0.01
-    SubstrateSizeX = 0.01
-    SubstrateSizeZ = 0.04
+    IndenterMeshMinSize = 0.0025
+    IndenterMeshMaxSize = 0.025
 
     CoarseMeshSize0 = 0.05
     CoarseMeshSize1 = 0.15
@@ -81,7 +83,6 @@ def ScratchModelSetup(
 
     # Datum plane offsets
     dpo_x = xs2 / 2.0
-    dpo_y = 0.15
     dpo_z = (zs2 - scratch_length) / 2.0
 
     sample_frequency_indentation = indentation_time / 5.0
@@ -101,7 +102,6 @@ def ScratchModelSetup(
         zs1,
         zs2,
         dpo_x,
-        dpo_y,
         dpo_z,
         sheet_size,
     )
@@ -115,22 +115,21 @@ def ScratchModelSetup(
         ys2,
         zs2,
         dpo_x,
-        dpo_y,
         dpo_z,
         CoarseMeshSize0,
         CoarseMeshSize1,
         CoarseMeshSize2,
-        SubstrateSizeX,
-        SubstrateSizeY,
-        SubstrateSizeZ,
+        SubstrateMeshSizeX,
+        SubstrateMeshSizeY,
+        SubstrateMeshSizeZ,
     )
 
     # Create and mesh indenter
     if IndenterToUse == "RockwellIndenter":
         ScratchModel, IndenterPart, indenter_set, IndenterName = RockwellIndenter(
             ScratchModel,
-            IndenterMinSize,
-            IndenterMaxSize,
+            IndenterMeshMinSize,
+            IndenterMeshMaxSize,
             R=0.2,
             theta=60.0,
             sheet_size=sheet_size,
@@ -141,8 +140,8 @@ def ScratchModelSetup(
                 ScratchModel,
                 xs2,
                 ys2,
-                IndenterMaxSize,
-                IndenterMinSize,
+                IndenterMeshMaxSize,
+                IndenterMeshMinSize,
                 sheet_size=sheet_size,
             )
         )
