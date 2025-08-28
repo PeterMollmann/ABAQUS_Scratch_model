@@ -16,6 +16,8 @@ import numpy as np
 
 
 class SubstrateMaterialAssignment:
+    """A class to handle the creation and assignment of material properties to the substrate part in an Abaqus model."""
+
     def __init__(
         self,
         ScratchModel,
@@ -25,6 +27,18 @@ class SubstrateMaterialAssignment:
         youngs_modulus,
         poisson_ratio,
     ):
+        """
+        Initializes the SubstrateMaterialAssignment class with the given parameters.
+
+        Args:
+            ScratchModel: The Abaqus model object.
+            SubstratePart: The Abaqus part object of the substrate.
+            SubstrateSet: The name of the set containing all the substrate cells.
+            rho (float): Density of the substrate material.
+            youngs_modulus (float): Young's modulus of the substrate material.
+            poisson_ratio (float): Poisson's ratio of the substrate material.
+        """
+
         self.ScratchModel = ScratchModel
         self.SubstratePart = SubstratePart
         self.SubstrateSet = SubstrateSet
@@ -41,6 +55,16 @@ class SubstrateMaterialAssignment:
         self.mat.Elastic(table=((youngs_modulus, poisson_ratio),))
 
     def IsotrpopicHardening(self, yield_strength, n):
+        """
+        Applies isotropic hardening to the material up to 50% total strain
+
+        Args:
+            yield_strength (float): The yield strength of the material.
+            n (float): The strain hardening exponent.
+        Returns:
+            mat: The Abaqus material object with isotropic hardening applied.
+        """
+
         total_strain_data = np.arange(0.0001, 0.5, 0.01)
         plastic_behaviour = []
         yield_strain = yield_strength / self.youngs_modulus
@@ -59,15 +83,51 @@ class SubstrateMaterialAssignment:
         return self.mat
 
     def JohnsonCookHardening(self, A, B, n, m, Tm, Tt):
+        """
+        Applies Johnson-Cook hardening to the material.
+        Args:
+            A (float): Yield stress at reference conditions.
+            B (float): Hardening modulus.
+            n (float): Strain hardening exponent.
+            m (float): Thermal softening exponent.
+            Tm (float): Melting temperature of the material.
+            Tt (float): Reference temperature.
+        Returns:
+            mat: The Abaqus material object with Johnson-Cook hardening applied.
+        """
+
         self.mat.Plastic(hardening=JOHNSON_COOK, table=((A, B, n, m, Tm, Tt),))
 
         return self.mat
 
     def JohnsonCookDamage(self, d1, d2, d3, d4, d5, Tm, Tt, Sr):
+        """
+        Applies Johnson-Cook damage initiation to the material.
+
+        Args:
+            d1 (float): Damage parameter 1.
+            d2 (float): Damage parameter 2.
+            d3 (float): Damage parameter 3.
+            d4 (float): Damage parameter 4.
+            d5 (float): Damage parameter 5.
+            Tm (float): Melting temperature of the material.
+            Tt (float): Reference temperature.
+            Sr (float): Stress triaxiality ratio.
+        Returns:
+            mat: The Abaqus material object with Johnson-Cook damage initiation applied.
+
+        """
         self.mat.JohnsonCookDamageInitiation(table=((d1, d2, d3, d4, d5, Tm, Tt, Sr),))
         return self.mat
 
     def SectionAssignment(self):
+        """
+        Assigns the created material to the substrate part by creating and assigning a section.
+
+        Returns:
+            ScratchModel: The Abaqus model object with the material and section assigned.
+            SubstratePart: The Abaqus part object of the substrate with the section assigned.
+        """
         # Creating section
         self.ScratchModel.HomogeneousSolidSection(
             material=self.MaterialName, name="SubstrateSection", thickness=None
