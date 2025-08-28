@@ -1,6 +1,41 @@
-*.*
+# --- Virtual environments ---
+venv/
+.venv/
+
+# --- Abaqus run directory---
+runs/
+
+# Other Abaqus files
+*.rpy*
+*.rec*
+*.log*
+
+
+# Abaqus scratch or temp dirs
+__MACOSX/
+scratch*/
+tmp*/
+temp*/
+
+# --- Python junk ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Build / packaging ---
+build/
+dist/
+*.egg-info/
+
+# --- IDEs ---
+.vscode/
+.idea/
+
+ProgressiveLoadScratch/outputs/
+
+# --- Project files to keep ---
 !*.py
 !.gitignore
 !*.cfg
-!*requirements.txt
-!*README.txt
+!requirements.txt
+!README.txt
