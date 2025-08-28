@@ -3,3 +3,4 @@
 !.gitignore
 !*.cfg
 !*requirements.txt
+!*README.txt
