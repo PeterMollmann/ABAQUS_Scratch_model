@@ -6,7 +6,7 @@ from ProgressiveLoading.SubstrateMaterial import SubstrateMaterialAssignment
 from itertools import product
 
 
-depth = -50e-3
+depth = -100e-3
 friction_coefficient = 0.0
 
 # Material elastic prpperties
