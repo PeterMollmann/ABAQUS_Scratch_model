@@ -18,13 +18,23 @@ def RockwellIndenter(
     Model, meshMinSize, meshMaxSize, R=0.2, theta=60.0, sheet_size=10.0
 ):
     """
-    Make a Rockwell indenter.
+    Makes the Rockwell indenter part in the given Model. First a 2D sketch is made and then revolved to create a 3D part.
+    The indenter is modelled as a rigid body with a reference point (and mass) at the center of the spherical tip.
+    The indenter is meshed with a sweep mesh.
 
     Args:
+        Model: The Abaqus model object where the indenter will be created.
+        meshMinSize (float): Minimum element size for meshing the indenter.
+        meshMaxSize (float): Maximum element size for meshing the indenter.
         R (float): Radius of the spherical tip of the indenter.
         theta (float): Angle in degrees between the axis of the indenter and the line connecting the center of the spherical tip to the point of contact.
+        sheet_size (float): Size of the sketching sheet.
 
     Returns:
+        Model: The Abaqus model object with the indenter added.
+        IndenterPart: The created indenter part.
+        indenter_set: The name of the set containing the reference point of the indenter.
+        IndenterName: The name of the indenter part.
     """
 
     IndenterName = "RockwellIndenter"
@@ -43,14 +53,11 @@ def RockwellIndenter(
         (-theta - (90 - theta) / 2.0) * pi / 180
     )  # y coordinate of sphere mid point
 
-    # xc3 = (xc2+xc1)/2.0
-    # yc3 = sqrt(R**2 - xc3**2)
-
     xl1 = xc2  # line x coorcinate 1
     yl1 = yc2  # line y coordinate 1
 
-    xl2 = xl1 + 0.3 * cos((90 - theta) * pi / 180)  # line x coordinate 2
-    yl2 = yl1 + 0.3 * sin((90 - theta) * pi / 180)  # line y coordinate 2
+    xl2 = xl1 + 0.5 * cos((90 - theta) * pi / 180)  # line x coordinate 2
+    yl2 = yl1 + 0.5 * sin((90 - theta) * pi / 180)  # line y coordinate 2
 
     # Make sketch
     Sketch.ConstructionLine(point1=(0.0, -5.0), point2=(0.0, 5.0))
@@ -76,8 +83,6 @@ def RockwellIndenter(
 
     # make arc for spherical tip
     Sketch.ArcByCenterEnds(center=(0.0, R), point1=(xc1, yc1), point2=(xc2, yc2))
-    # ArcByCenterEnds(center=(0.0, 10.0), direction=COUNTERCLOCKWISE, point1=(0.0, 0.0), point2=(10.0, 2.5))
-
     Sketch.CoincidentConstraint(
         entity1=Sketch.vertices.findAt(
             (xc1, yc1),
@@ -97,28 +102,6 @@ def RockwellIndenter(
 
     # make lines for conical part
     Sketch.Line(point1=(xl1, yl1), point2=(xl2, yl2))
-
-    # angle of conical part
-    # Sketch.AngularDimension(
-    #     line1=Sketch.geometry.findAt(
-    #         (0.0, 1.0),
-    #     ),
-    #     line2=Sketch.geometry.findAt(
-    #         (xl1, yl1),
-    #     ),
-    #     textPoint=(0.812108516693115, 0.7),
-    #     value=indenter_angle,
-    # )
-
-    # Make construction line tangent to spherical tip
-    # Sketch.TangentConstraint(
-    #     entity1=Sketch.geometry.findAt(
-    #         (1.0, 0.0),
-    #     ),
-    #     entity2=Sketch.geometry.findAt(
-    #         (xc2, yc2),
-    #     ),
-    # )
 
     # Make conical line tangent to spherical tip
     Sketch.TangentConstraint(
@@ -140,14 +123,6 @@ def RockwellIndenter(
         ),
     )
 
-    # set radius of spherical tip
-    # Sketch.RadialDimension(
-    #     curve=Sketch.geometry.findAt(
-    #         (xc3, yc3),
-    #     ),
-    #     radius=R,
-    #     textPoint=(0.330665588378906, 0.729206442832947),
-    # )
     # Revolve to make 3D part
     Sketch.sketchOptions.setValues(constructionGeometry=ON)
     Sketch.assignCenterline(
