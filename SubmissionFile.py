@@ -1,8 +1,8 @@
 from abaqus import *
 from abaqusConstants import *
 from PostProcessing import *
-from ProgressiveLoading.ProgressiveLoadScratchTest import ScratchModelSetup
-from ProgressiveLoading.SubstrateMaterial import SubstrateMaterialAssignment
+from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
+from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 from itertools import product
 
 
