@@ -89,14 +89,14 @@ def SubstrateGeneration(
             ((xs1, ys1, zs1),),
             ((xs2, ys1, zs1),),
         ),
-        datumPlane=SubstratePart.datums[4],
+        datumPlane=SubstratePart.datums[3],
     )
     SubstratePart.PartitionCellByDatumPlane(
         cells=SubstratePart.cells.findAt(
             ((xs1, ys1, zs2),),
             ((xs2, ys1, zs2),),
         ),
-        datumPlane=SubstratePart.datums[5],
+        datumPlane=SubstratePart.datums[4],
     )
 
     SubstrateSet = SubstrateName + "Set"

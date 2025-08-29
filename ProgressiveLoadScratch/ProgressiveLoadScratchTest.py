@@ -63,8 +63,8 @@ def ScratchModelSetup(
     IndenterMinSize = 0.0025
     IndenterMaxSize = 0.025
 
-    SubstrateSizeY = 0.01
-    SubstrateSizeX = 0.01
+    SubstrateSizeY = 0.04
+    SubstrateSizeX = 0.04
     SubstrateSizeZ = 0.04
 
     CoarseMeshSize0 = 0.05
@@ -81,7 +81,6 @@ def ScratchModelSetup(
 
     # Datum plane offsets
     dpo_x = xs2 / 2.0
-    dpo_y = 0.15
     dpo_z = (zs2 - scratch_length) / 2.0
 
     sample_frequency_indentation = indentation_time / 5.0
@@ -101,7 +100,6 @@ def ScratchModelSetup(
         zs1,
         zs2,
         dpo_x,
-        dpo_y,
         dpo_z,
         sheet_size,
     )
@@ -115,7 +113,6 @@ def ScratchModelSetup(
         ys2,
         zs2,
         dpo_x,
-        dpo_y,
         dpo_z,
         CoarseMeshSize0,
         CoarseMeshSize1,
