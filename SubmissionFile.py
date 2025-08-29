@@ -4,7 +4,16 @@ from PostProcessing import *
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 from itertools import product
+import os
 
+
+jobName = "ProgressiveLoadScratchTest"
+rundir = os.path.join("runs", jobName)
+if not os.path.exists(rundir):
+    os.makedirs(rundir)
+
+# Change current working directory
+os.chdir(rundir)
 
 depth = -100e-3
 friction_coefficient = 0.0
@@ -63,8 +72,6 @@ for arg in materialIterationProduct:
     material.JohnsonCookHardening(A=arg[0], B=arg[1], n=arg[2], m=m, Tm=Tm, Tt=Tt)
     # material.JohnsonCookDamage(d1=d1, d2=d2, d3=d3, d4=d4, d5=d5, Tm=Tm, Tt=Tt, Sr=Sr)
     material.SectionAssignment()
-
-    jobName = "ProgressiveLoadScratchTest"
 
     #### ------------------------------ ####
     #           Create Job
