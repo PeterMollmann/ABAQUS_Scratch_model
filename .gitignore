@@ -1,6 +1,19 @@
-*.*
-!*.py
-!.gitignore
-!*.cfg
-!*requirements.txt
-!*README.txt
+# Python environment
+venv/
+.venv/
+
+# Abaqus output
+runs/
+*.rpy*
+*.log
+*.rec*
+*simdir/
+
+# Bytecode
+__pycache__/
+*.py[cod]
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
