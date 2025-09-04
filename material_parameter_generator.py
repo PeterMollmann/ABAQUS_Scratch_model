@@ -16,8 +16,9 @@ param_ranges = {
     "uts": (1000, 1300),  # Ultimate tensile strength [MPa]
 }
 
-n_samples = 10
-output_file = "material_parameters.csv"
+n_samples = 1
+output_file_csv = "material_parameters.csv"
+output_file_py = "material_parameters.py"
 
 
 dim = len(param_ranges)
@@ -45,4 +46,11 @@ df = df.round(
         "uts": 0,
     }
 )
-df.to_csv(output_file, index=False)
+df.to_csv(output_file_csv, index=False)
+
+param_dicts = df.to_dict(orient="records")
+with open(output_file_py, "w") as f:
+    f.write("parameters = [\n")
+    for row in param_dicts:
+        f.write(f"    {row},\n")
+    f.write("]\n")

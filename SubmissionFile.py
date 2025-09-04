@@ -3,74 +3,103 @@ from abaqusConstants import *
 from PostProcessing import *
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
-from itertools import product
 import os
+import csv
+from material_parameters import parameters
 
+# import pandas as pd
 
+### ---------------- ###
+# SETTINGS
+### ---------------- ###
 jobName = "ProgressiveLoadScratchTest"
-rundir = os.path.join("runs", jobName)
-if not os.path.exists(rundir):
-    os.makedirs(rundir)
-
-# Change current working directory
-os.chdir(rundir)
+indenter = "RockwellIndenter"
+materialModel = "JohnsonCook"
+damageModel = False
 
 depth = -100e-3
 friction_coefficient = 0.0
 
-# Material elastic prpperties
-E_modulus = 200000.0
+# df = pd.read_csv("material_parameters.csv")
+
+
+# # Material elastic prpperties
+# E_modulus = 200000.0
 density = 7.8e-9
 
-# Material density
-poisson = 0.3
+# # Material density
+# poisson = 0.3
 
-# Material hardening properties - Isotropic hardening
+# # Material hardening properties - Isotropic hardening
 # yield_stress_sweep = [200.0]
 # strain_hardening_sweep = [0.2]
-# materialIterationProduct = product(yield_stress_sweep, strain_hardening_sweep)
 
-# Material hardening properties - Johnson-Cook
-A = [200.0]
-B = [100.0]
-n = [0.2]
-m = 0.0
-Tm = 0.0
-Tt = 0.0
+# # Material hardening properties - Johnson-Cook
+# A = [200.0]  # Yield strength
+# B = [100.0]  # Hardening parameter
+# n = [0.2]  # Hardening parameter
+# m = 0.0
+# Tm = 0.0
+# Tt = 0.0
 
-# Material damage model - Johnson-Cook damage initiation
-d1 = 0.028
-d2 = 1
-d3 = -0.916
-d4 = 0
-d5 = 0
-Sr = 0
+# # Material damage model - Johnson-Cook damage initiation
+# d1 = 0.028
+# d2 = 1
+# d3 = -0.916
+# d4 = 0
+# d5 = 0
+# Sr = 0
 
-
-materialIterationProduct = product(A, B, n)
 
 # Parallelisation
 num_cpus = 6
 num_domains = num_cpus
 
+
+# Change abaqus working directory
+rundir = os.path.join("runs", jobName)
+if not os.path.exists(rundir):
+    os.makedirs(rundir)
+os.chdir(rundir)
+
+
+# Setup scratch model. Only needs to be called once
 ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
-    depth=depth,
-    IndenterToUse="RockwellIndenter",
+    depth=depth, IndenterToUse=indenter
 )
 
-for arg in materialIterationProduct:
+# for idx, arg in df.iterrows():
+#     run_id = arg["id"]
+#     E, nu = arg["E"], arg["nu"]
+#     A, B, n = arg["A"], arg["B"], arg["n"]
+#     D1, D2, D3, uts = arg["D1"], arg["D2"], arg["D3"], arg["uts"]
+# with open("material_parameters.csv") as f:
+#     reader = csv.DictReader(f)
+for arg in parameters:
+    run_id = arg["id"]
+    E = float(arg["E"])
+    nu = float(arg["nu"])
+    A = float(arg["A"])
+    B = float(arg["B"])
+    n = float(arg["n"])
+    D1 = float(arg["D1"])
+    D2 = float(arg["D2"])
+    D3 = float(arg["D3"])
+    uts = float(arg["uts"])
+
+    fileName = "sim" + str(run_id)
 
     material = SubstrateMaterialAssignment(
         ScratchModel,
         SubstratePart,
         SubstrateSet,
         rho=density,
-        youngs_modulus=E_modulus,
-        poisson_ratio=poisson,
+        youngs_modulus=E,
+        poisson_ratio=nu,
     )
-    # material.IsotrpopicHardening(yield_strength=arg[0], n=arg[1])
-    material.JohnsonCookHardening(A=arg[0], B=arg[1], n=arg[2], m=m, Tm=Tm, Tt=Tt)
-    # material.JohnsonCookDamage(d1=d1, d2=d2, d3=d3, d4=d4, d5=d5, Tm=Tm, Tt=Tt, Sr=Sr)
+
+    material.JohnsonCookHardening(A=A, B=B, n=n)
+    material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
     material.SectionAssignment()
 
     #### ------------------------------ ####
@@ -109,15 +138,6 @@ for arg in materialIterationProduct:
     mdb.jobs[jobName].submit(consistencyChecking=OFF)
     mdb.jobs[jobName].waitForCompletion()
 
-    # PostProcess(
-    #     jobName,
-    #     sigma_y=sigma_y,
-    #     strain_hardening_index=n,
-    #     depth=depth,
-    #     friction_coefficient=friction_coefficient,
-    #     E_modulus=E_modulus,
-    #     density=density,
-    #     poisson=poisson,
-    # )
+    PostProcess(jobName, fileName)
 
 mdb.close()
