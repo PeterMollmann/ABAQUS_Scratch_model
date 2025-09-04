@@ -5,6 +5,7 @@ from scipy.stats import qmc
 
 
 param_ranges = {
+    # "rho": (7.8e-9, 7.8e-9),  # Density [Tonne/mm^3]
     "E": (180e3, 220e3),  # Young's modulus [MPa]
     "nu": (0.25, 0.35),  # Poisson's ratio [-]
     "A": (400, 700),  # JC hardening A (yield strength) [MPa]
@@ -32,6 +33,8 @@ scaled_sample = qmc.scale(sample, l_bounds, u_bounds)
 
 df = pd.DataFrame(scaled_sample, columns=param_ranges.keys())
 df.insert(0, "id", [f"{i:04d}" for i in range(1, n_samples + 1)])
+df.insert(1, "rho", 7.8e-9)
+
 
 df = df.round(
     {

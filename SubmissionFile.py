@@ -4,7 +4,6 @@ from PostProcessing import *
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
-import csv
 from material_parameters import parameters
 
 # import pandas as pd
@@ -20,36 +19,7 @@ damageModel = False
 depth = -100e-3
 friction_coefficient = 0.0
 
-# df = pd.read_csv("material_parameters.csv")
-
-
-# # Material elastic prpperties
-# E_modulus = 200000.0
-density = 7.8e-9
-
-# # Material density
-# poisson = 0.3
-
-# # Material hardening properties - Isotropic hardening
-# yield_stress_sweep = [200.0]
-# strain_hardening_sweep = [0.2]
-
-# # Material hardening properties - Johnson-Cook
-# A = [200.0]  # Yield strength
-# B = [100.0]  # Hardening parameter
-# n = [0.2]  # Hardening parameter
-# m = 0.0
-# Tm = 0.0
-# Tt = 0.0
-
-# # Material damage model - Johnson-Cook damage initiation
-# d1 = 0.028
-# d2 = 1
-# d3 = -0.916
-# d4 = 0
-# d5 = 0
-# Sr = 0
-
+# density = 7.8e-9
 
 # Parallelisation
 num_cpus = 6
@@ -68,15 +38,10 @@ ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
     depth=depth, IndenterToUse=indenter
 )
 
-# for idx, arg in df.iterrows():
-#     run_id = arg["id"]
-#     E, nu = arg["E"], arg["nu"]
-#     A, B, n = arg["A"], arg["B"], arg["n"]
-#     D1, D2, D3, uts = arg["D1"], arg["D2"], arg["D3"], arg["uts"]
-# with open("material_parameters.csv") as f:
-#     reader = csv.DictReader(f)
+
 for arg in parameters:
     run_id = arg["id"]
+    rho = float(arg["rho"])
     E = float(arg["E"])
     nu = float(arg["nu"])
     A = float(arg["A"])
@@ -93,7 +58,7 @@ for arg in parameters:
         ScratchModel,
         SubstratePart,
         SubstrateSet,
-        rho=density,
+        rho=rho,
         youngs_modulus=E,
         poisson_ratio=nu,
     )
