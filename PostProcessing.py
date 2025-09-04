@@ -1,38 +1,16 @@
 from odbAccess import *
 import numpy as np
+import os
 
 
-def PostProcess(
-    sigma_y=500.0,
-    strain_hardening_index=0.2,
-    depth=-50e-3,
-    friction_coefficient=0.0,
-    E_modulus=200000.0,
-    density=7.8e-9,
-    poisson=0.3,
-):
-    jobName = "ExplicitRigidIndenterScratch"
-    outputName = (
-        "SY"
-        + str(int(sigma_y))
-        + "_n0"
-        + str(int(10 * strain_hardening_index))
-        + "_d00"
-        + str(abs(int(1000 * depth)))
-        + "_E"
-        + str(int(E_modulus))
-        + "_mu0"
-        + str(int(10 * friction_coefficient))
-        + "_rho"
-        + str(int((1e10) * density))
-        + "_Poisson0"
-        + str(int(10 * poisson))
-    )
+def PostProcess(jobName, fileName):
     odbName = jobName + ".odb"
     odb = openOdb(path=odbName, readOnly=True)
-    outputFileName = "reactionForces_" + outputName + ".txt"
-    outputFilePath = "outputs/" + outputFileName
-    steps = ["IndentationStep", "ScratchingStep", "UnloadingStep"]
+    outputFileName = fileName + "_RFs.txt"
+    outputFilePath = "SimDataOutputs/" + outputFileName
+    if not os.path.exists(outputFilePath):
+        os.makedirs(outputFilePath)
+    steps = odb.steps.keys()
     rfs = ["RF1", "RF2", "RF3"]
     with open(outputFilePath, "w") as file:
         file.write("Step,Time,RF1,RF2,RF3\n")
@@ -107,8 +85,10 @@ def PostProcess(
         )  # Default to zero displacement if not found
         deformedCoords.append((nodeLabel, x + disp[0], y + disp[1], z + disp[2]))
     # Write sorted undeformed and deformed coordinates to file
-    outputFileName = "coordinates_" + outputName + ".txt"
-    outputFilePath = "outputs/" + outputFileName
+    outputFileName = fileName + "_SurfCoords.txt"
+    outputFilePath = "SimDataOutputs/" + outputFileName
+    if not os.path.exists(outputFilePath):
+        os.makedirs(outputFilePath)
     with open(outputFilePath, "w") as file:
         file.write(
             "NodeLabel, x_undeformed, y_undeformed, z_undeformed, x_deformed, y_deformed, z_deformed\n"
