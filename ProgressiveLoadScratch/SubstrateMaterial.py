@@ -118,6 +118,15 @@ class SubstrateMaterialAssignment:
 
         """
         self.mat.JohnsonCookDamageInitiation(table=((d1, d2, d3, d4, d5, Tm, Tt, Sr),))
+        # eps_f = d1 + d2*exp(-d3*)
+        return self.mat
+
+    def DamageEvolution(self, kc, E, nu):
+        E_star = E / (1 - nu**2)
+        fractureEnergy = kc**2 / E_star
+        self.mat.johnsonCookDamageInitiation.DamageEvolution(
+            table=((fractureEnergy,),), type=ENERGY
+        )
         return self.mat
 
     def SectionAssignment(self):

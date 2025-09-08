@@ -11,10 +11,11 @@ param_ranges = {
     "A": (400, 700),  # JC hardening A (yield strength) [MPa]
     "B": (800, 1200),  # JC hardening B [MPa]
     "n": (0.15, 0.35),  # JC hardening exponent [-]
-    "D1": (0.02, 0.10),  # JC damage parameter [-]
+    "D1": (1, 1.2),  # JC damage parameter [-]
     "D2": (0.05, 0.15),  # JC damage parameter [-]
     "D3": (-0.7, -0.3),  # JC damage parameter [-]
     "uts": (1000, 1300),  # Ultimate tensile strength [MPa]
+    "kc": (400, 6000),  # Fracture toughness [MPa mm^1/2]
 }
 
 n_samples = 1
@@ -47,6 +48,7 @@ df = df.round(
         "D2": 3,
         "D3": 3,
         "uts": 0,
+        "kc": 0,
     }
 )
 df.to_csv(output_file_csv, index=False)
