@@ -63,9 +63,9 @@ def ScratchModelSetup(
     IndenterMinSize = 0.0025
     IndenterMaxSize = 0.025
 
-    SubstrateSizeY = 0.04
-    SubstrateSizeX = 0.04
-    SubstrateSizeZ = 0.04
+    SubstrateSizeY = 0.040
+    SubstrateSizeX = 0.020
+    SubstrateSizeZ = 0.020
 
     CoarseMeshSize0 = 0.05
     CoarseMeshSize1 = 0.15
@@ -177,7 +177,7 @@ def ScratchModelSetup(
 
     ScratchModelAssembly.translate(
         instanceList=(indenterInstanceName,),
-        vector=(0.0, 0.0, (zs2 - scratch_length) / 2.0),
+        vector=(0.0, 0.0, dpo_z),
     )
 
     #### ------------------------------ ####
@@ -277,21 +277,11 @@ def ScratchModelSetup(
     ScratchModel.TabularAmplitude(
         data=(
             (0.0, 0.0),
-            # (indentation_time, 1.0),
             (scratch_time, 1.0),
             (indentation_time + scratch_time, 0.0),
         ),
         name="Amp-1",
         smooth=SOLVER_DEFAULT,
-        timeSpan=TOTAL,
-    )
-    ScratchModel.SmoothStepAmplitude(
-        data=(
-            (0.0, 0.0),
-            (scratch_time, 1.0),
-            (indentation_time + scratch_time, 0.0),
-        ),
-        name="Amp-2",
         timeSpan=TOTAL,
     )
 
@@ -307,7 +297,6 @@ def ScratchModelSetup(
         u1=UNSET,
         u2=scratch_depth,
         u3=scratch_length,
-        # u3=UNSET,
         ur1=UNSET,
         ur2=UNSET,
         ur3=UNSET,
@@ -343,37 +332,50 @@ def ScratchModelSetup(
         timeInterval=sample_force_frequency_scratching,
         variables=("RF1", "RF2", "RF3"),
     )
+    ScratchModel.HistoryOutputRequest(
+        createStepName=StepName1,
+        name="Energy",
+        region=ScratchModelAssembly.allInstances["SubstrateInst"].sets["SubstrateSet"],
+        timeInterval=sample_force_frequency_scratching,
+        variables=("ALLKE", "ALLIE"),
+    )
 
     ScratchModel.FieldOutputRequest(
         createStepName=StepName1,
         name="FieldOutput",
         timeInterval=sample_frequency_scratching,
         variables=(
-            "A",
+            "MISES",
+            "TRIAX",
+            # "A",
             "CSTRESS",
             "EVF",
             "LE",
             "PE",
             "PEEQ",
-            "PEEQVAVG",
-            "PEVAVG",
+            # "PEEQVAVG",
+            # "PEVAVG",
             "RF",
             "S",
             "SVAVG",
             "U",
-            "V",
+            # "V",
             # "DUCTCRT",
+            # "JCCRT",
             "DAMAGEC",
             "DAMAGET",
+            "DMICRT",
+            "STATUS",
+            "SDEG",
         ),
     )
 
-    ScratchModel.FieldOutputRequest(
-        createStepName=StepName1,
-        name="ContactForce",
-        timeInterval=sample_frequency_scratching,
-        variables=("CFORCE",),
-    )
+    # ScratchModel.FieldOutputRequest(
+    #     createStepName=StepName1,
+    #     name="ContactForce",
+    #     timeInterval=sample_frequency_scratching,
+    #     variables=("CFORCE",),
+    # )
 
     #### ------------------------------ ####
     #           Unloading Step
@@ -393,11 +395,16 @@ def ScratchModelSetup(
     ScratchModel.fieldOutputRequests["FieldOutput"].setValuesInStep(
         stepName=StepName2, timeInterval=sample_frequency_indentation
     )
-    ScratchModel.fieldOutputRequests["ContactForce"].setValuesInStep(
+
+    # ScratchModel.fieldOutputRequests["ContactForce"].setValuesInStep(
+    #     stepName=StepName2, timeInterval=sample_frequency_indentation
+    # )
+
+    ScratchModel.historyOutputRequests["ReactionForces"].setValuesInStep(
         stepName=StepName2, timeInterval=sample_frequency_indentation
     )
 
-    ScratchModel.historyOutputRequests["ReactionForces"].setValuesInStep(
+    ScratchModel.historyOutputRequests["Energy"].setValuesInStep(
         stepName=StepName2, timeInterval=sample_frequency_indentation
     )
 
@@ -434,13 +441,14 @@ def ScratchModelSetup(
     #### ------------------------------ ####
     #         Final touches
     #### ------------------------------ ####
-    # Rotate indenter 45 degress around x axis
-    ScratchModelAssembly.rotate(
-        angle=45.0,
-        axisDirection=(xs1, ys2, zs1),
-        axisPoint=(xs1, ys2, (zs2 - scratch_length) / 2.0),
-        instanceList=(indenterInstanceName,),
-    )
+    # Rotate pyramid indenter 45 degress around x axis
+    if IndenterToUse == "Pyramid":
+        ScratchModelAssembly.rotate(
+            angle=45.0,
+            axisDirection=(xs1, ys2, zs1),
+            axisPoint=(xs1, ys2, dpo_z),
+            instanceList=(indenterInstanceName,),
+        )
 
     # create node set for post processing ease
     contactSurfaceSet = "contactSurfaceSet"
