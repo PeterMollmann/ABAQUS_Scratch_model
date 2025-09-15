@@ -17,3 +17,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Specific files
+/material_parameters.py
+/material_parameters.csv

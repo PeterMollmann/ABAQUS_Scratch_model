@@ -82,7 +82,7 @@ class SubstrateMaterialAssignment:
         self.mat.Plastic(table=plastic_behaviour)
         return self.mat
 
-    def JohnsonCookHardening(self, A, B, n, m, Tm, Tt):
+    def JohnsonCookHardening(self, A, B, n, m=0.0, Tm=0.0, Tt=0.0):
         """
         Applies Johnson-Cook hardening to the material.
         Args:
@@ -100,7 +100,7 @@ class SubstrateMaterialAssignment:
 
         return self.mat
 
-    def JohnsonCookDamage(self, d1, d2, d3, d4, d5, Tm, Tt, Sr):
+    def JohnsonCookDamage(self, d1, d2, d3, d4=0.0, d5=0.0, Tm=0.0, Tt=0.0, Sr=0.0):
         """
         Applies Johnson-Cook damage initiation to the material.
 
@@ -118,6 +118,15 @@ class SubstrateMaterialAssignment:
 
         """
         self.mat.JohnsonCookDamageInitiation(table=((d1, d2, d3, d4, d5, Tm, Tt, Sr),))
+        # eps_f = d1 + d2*exp(-d3*)
+        return self.mat
+
+    def DamageEvolution(self, kc, E, nu):
+        E_star = E / (1 - nu**2)
+        fractureEnergy = kc**2 / E_star
+        self.mat.johnsonCookDamageInitiation.DamageEvolution(
+            table=((fractureEnergy,),), type=ENERGY
+        )
         return self.mat
 
     def SectionAssignment(self):

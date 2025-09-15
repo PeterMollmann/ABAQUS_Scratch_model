@@ -136,6 +136,15 @@ def RockwellIndenter(
         flipRevolveDirection=OFF,
         sketch=Sketch,
     )
+
+    # Sketch.Line(point1=(xl2, yl2), point2=(0.0, yl2))
+    # Sketch.Line(point1=(0.0, yl2), point2=(0.0, 0.0))
+    # Model.Part(dimensionality=THREE_D, name=IndenterName, type=DEFORMABLE_BODY)
+    # Model.parts[IndenterName].BaseSolidRevolve(
+    #     angle=360.0,
+    #     flipRevolveDirection=OFF,
+    #     sketch=Sketch,
+    # )
     del Sketch
     IndenterPart = Model.parts[IndenterName]
 
@@ -152,6 +161,12 @@ def RockwellIndenter(
     IndenterPart.Set(
         name=indenter_set, referencePoints=(IndenterPart.referencePoints[2],)
     )
+
+    # IndenterPart.Set(
+    #     name=indenter_set,
+    #     cells=IndenterPart.cells.findAt(((xc1, yc1, 0.0),)),
+    # )
+
     IndenterPart.engineeringFeatures.PointMassInertia(
         alpha=0.0,
         composite=0.0,
@@ -162,6 +177,22 @@ def RockwellIndenter(
         name="IndenterInertia",
         region=IndenterPart.sets[indenter_set],
     )
+
+    # mat = Model.Material(name="IndenterMaterial")
+    # mat.Density(table=((3.5e-3,),))
+    # mat.Elastic(table=((1050e3, 0.2),))
+    # Model.HomogeneousSolidSection(
+    #     material="IndenterMaterial", name="IndenterSection", thickness=None
+    # )
+
+    # IndenterPart.SectionAssignment(
+    #     offset=0.0,
+    #     offsetField="",
+    #     offsetType=MIDDLE_SURFACE,
+    #     region=IndenterPart.sets[indenter_set],
+    #     sectionName="IndenterSection",
+    #     thicknessAssignment=FROM_SECTION,
+    # )
 
     #### ------------------------------ ####
     #             Meshing
@@ -190,4 +221,4 @@ def RockwellIndenter(
 
     IndenterPart.generateMesh()
 
-    return Model, IndenterPart, indenter_set, IndenterName
+    return Model, IndenterPart, indenter_set, IndenterName, (xl2, yl2)
