@@ -19,5 +19,5 @@ build/
 dist/
 
 # Specific files
-material_parameters.py
-material_parameters_csv
+/material_parameters.py
+/material_parameters.csv
