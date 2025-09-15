@@ -135,17 +135,6 @@ def ScratchModelSetup(
             sheet_size=sheet_size,
         )
     )
-    # elif IndenterToUse == "PyramidIndenter":
-    #     ScratchModel, IndenterPart, indenter_set, IndenterName, indenterHeight = (
-    #         PyramidIndenter(
-    #             ScratchModel,
-    #             xs2,
-    #             ys2,
-    #             IndenterMaxSize,
-    #             IndenterMinSize,
-    #             sheet_size=sheet_size,
-    #         )
-    #     )
 
     #### ------------------------------ ####
     #            Assembly
@@ -163,17 +152,6 @@ def ScratchModelSetup(
     )
     SpecimenInstance = ScratchModelAssembly.instances[specimenInstanceName]
 
-    # if IndenterName == "PyramidIndenter":
-    #     ScratchModelAssembly.translate(
-    #         instanceList=(indenterInstanceName,), vector=(0.0, 0.0, -indenterHeight)
-    #     )
-    #     ScratchModelAssembly.rotate(
-    #         angle=90.0,
-    #         axisDirection=(10.0, 0.0, 0.0),
-    #         axisPoint=(xs1, ys2, zs1),
-    #         instanceList=(indenterInstanceName,),
-    #     )
-    # elif IndenterName == "RockwellIndenter":
     eps = 0.00
     ScratchModelAssembly.translate(
         instanceList=(indenterInstanceName,), vector=(0.0, ys2 + eps, 0.0)
@@ -268,20 +246,6 @@ def ScratchModelSetup(
         region=ScratchModelAssembly.sets[ZsymmetryBCSet],
     )
 
-    # Defining the indenter movement bc
-    # if IndenterName == "PyramidIndenter":
-    #     ScratchModelAssembly.Set(
-    #         name=indenter_set, referencePoints=(IndenterInstance.referencePoints[3],)
-    #     )
-    # elif IndenterName == "RockwellIndenter":
-    # ScratchModelAssembly.Set(
-    #     name=indenter_set, referencePoints=(IndenterInstance.referencePoints[2],)
-    # )
-    # ScratchModelAssembly.Set(
-    #     name=indenter_set,
-    #     cells=IndenterInstance.cells.findAt(((xs1, ys2, zs1 + dpo_z),)),
-    # )
-
     ScratchModel.TabularAmplitude(
         data=(
             (0.0, 0.0),
@@ -292,17 +256,6 @@ def ScratchModelSetup(
         smooth=SOLVER_DEFAULT,
         timeSpan=TOTAL,
     )
-
-    # ScratchModel.ConcentratedForce(
-    #     amplitude="Amp-1",
-    #     cf2=-100000.0,
-    #     createStepName=StepName1,
-    #     distributionType=UNIFORM,
-    #     field="",
-    #     localCsys=None,
-    #     name="Load-1",
-    #     region=IndenterInstance.sets[indenter_set],
-    # )
 
     ScratchModel.DisplacementBC(
         amplitude="Amp-1",
@@ -493,15 +446,6 @@ def ScratchModelSetup(
         assignments=((GLOBAL, SELF, "IntProp-1"),), stepName="Initial"
     )
 
-    #### ------------------------------ ####
-    #         Final touches
-    #### ------------------------------ ####
-    # create node set for post processing
-    # contactSurfaceSet = "contactSurfaceSet"
-    # ScratchModelAssembly.Set(
-    #     faces=SpecimenInstance.faces.findAt(((dpo_x / 2.0, ys2, (zs2 + zs1) / 2.0),)),
-    #     name=contactSurfaceSet,
-    # )
     ScratchModelAssembly.Set(
         name="contactRegionNodes",
         nodes=ScratchModelAssembly.allSurfaces[slaveSurfaceName].nodes,

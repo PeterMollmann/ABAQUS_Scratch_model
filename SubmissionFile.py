@@ -17,9 +17,7 @@ materialModel = "JohnsonCook"
 damageModel = False
 
 depth = -75e-3
-friction_coefficient = 0.0
 
-# density = 7.8e-9
 
 # Parallelisation
 num_cpus = 6
@@ -53,6 +51,7 @@ for arg in parameters:
     D3 = float(arg["D3"])
     uts = float(arg["uts"])
     kc = float(arg["kc"])
+    mu = float(arg["mu"])
 
     fileName = "sim" + str(run_id)
 
@@ -69,6 +68,7 @@ for arg in parameters:
     material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
     material.DamageEvolution(kc=kc, E=E, nu=nu)
     material.SectionAssignment()
+    material.UpdateFriction(mu)
 
     #### ------------------------------ ####
     #           Create Job
