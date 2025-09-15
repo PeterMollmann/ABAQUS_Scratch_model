@@ -151,3 +151,19 @@ class SubstrateMaterialAssignment:
             thicknessAssignment=FROM_SECTION,
         )
         return self.ScratchModel, self.SubstratePart
+
+    def UpdateFriction(self, mu):
+        """
+        Updates the interfacial coefficient of friction in the tangential behaviour of the contact properties.
+
+        Args:
+            mu (float): Interfacial coefficient of friction.
+
+        Returns:
+            ScratchModel: The Abaqus model object with updated friction coefficient.
+
+        """
+        self.ScratchModel.interactionProperties[
+            "IntProp-1"
+        ].tangentialBehavior.setValues(table=((mu,),))
+        return self.ScratchModel

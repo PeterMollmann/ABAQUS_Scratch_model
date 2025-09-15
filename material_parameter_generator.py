@@ -17,6 +17,7 @@ def MaterialParameterGenerator():
         "D3": (-0.7, -0.3),  # JC damage parameter [-]
         "uts": (1000, 1300),  # Ultimate tensile strength [MPa]
         "kc": (400, 6000),  # Fracture toughness [MPa mm^1/2]
+        "mu": (0.0, 0.25),  # Interfacial friction [-]
     }
 
     n_samples = 1
@@ -47,6 +48,7 @@ def MaterialParameterGenerator():
             "D3": 3,
             "uts": 0,
             "kc": 0,
+            "mu": 3,
         }
     )
     df.to_csv(output_file_csv, index=False)
