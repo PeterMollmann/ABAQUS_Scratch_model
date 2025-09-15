@@ -20,7 +20,7 @@ from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
 
 def ScratchModelSetup(
     depth=-50e-3,
-    IndenterToUse="RockwellIndenter",  # Options are "RockwellIndenter" or "PyramidIndenter"
+    # IndenterToUse="RockwellIndenter",  # Options are "RockwellIndenter" or "PyramidIndenter"
 ):
     """
     Sets up the scratch model with substrate and indenter parts, assembly,
@@ -34,7 +34,7 @@ def ScratchModelSetup(
 
     Args:
         depth (float): The depth of the scratch indentation in mm. Default is -50e-3 (i.e., -0.05 micrometer).
-        IndenterToUse (str): Type of indenter to use. Options are "RockwellIndenter" or "PyramidIndenter". Default is "RockwellIndenter".
+        # IndenterToUse (str): Type of indenter to use. Options are "RockwellIndenter" or "PyramidIndenter". Default is "RockwellIndenter".
 
     Returns:
         ScratchModel: The Abaqus model object with the complete scratch test setup.
@@ -58,7 +58,7 @@ def ScratchModelSetup(
     xs2 = 0.96  # x coordinate of second point
     ys2 = 0.8  # y coordinate of second point
     zs1 = 0.0  # z coordinate of first point
-    zs2 = 6.0  # z coordinate of second point - extrude depth
+    zs2 = 3.0  # z coordinate of second point - extrude depth
 
     # Meshing parameters
     IndenterMinSize = 0.0025
@@ -78,7 +78,7 @@ def ScratchModelSetup(
 
     # Scratch parameters
     scratch_depth = depth  # [mm]
-    scratch_length = 5  # [mm]
+    scratch_length = 2  # [mm]
 
     # Datum plane offsets
     dpo_x = xs2 / 2.0
@@ -293,6 +293,17 @@ def ScratchModelSetup(
         timeSpan=TOTAL,
     )
 
+    # ScratchModel.ConcentratedForce(
+    #     amplitude="Amp-1",
+    #     cf2=-100000.0,
+    #     createStepName=StepName1,
+    #     distributionType=UNIFORM,
+    #     field="",
+    #     localCsys=None,
+    #     name="Load-1",
+    #     region=IndenterInstance.sets[indenter_set],
+    # )
+
     ScratchModel.DisplacementBC(
         amplitude="Amp-1",
         createStepName=StepName1,
@@ -304,6 +315,7 @@ def ScratchModelSetup(
         region=IndenterInstance.sets[indenter_set],
         u1=UNSET,
         u2=scratch_depth,
+        # u2=UNSET,
         u3=scratch_length,
         ur1=UNSET,
         ur2=UNSET,
