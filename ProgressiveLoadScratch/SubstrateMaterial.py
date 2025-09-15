@@ -112,7 +112,7 @@ class SubstrateMaterialAssignment:
             d5 (float): Damage parameter 5.
             Tm (float): Melting temperature of the material.
             Tt (float): Reference temperature.
-            Sr (float): Stress triaxiality ratio.
+            Sr (float): Reference strain rate.
         Returns:
             mat: The Abaqus material object with Johnson-Cook damage initiation applied.
 
@@ -122,6 +122,14 @@ class SubstrateMaterialAssignment:
         return self.mat
 
     def DamageEvolution(self, kc, E, nu):
+        """
+        Assigns damage evolution to the model.
+
+        Args:
+            kc (float): Fracture toughness.
+            E (float): Young's modulus.
+            nu (float): Poisson's ratio
+        """
         E_star = E / (1 - nu**2)
         fractureEnergy = kc**2 / E_star
         self.mat.johnsonCookDamageInitiation.DamageEvolution(
