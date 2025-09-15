@@ -11,4 +11,4 @@ Data generation:
 As abaqus runs on an old version of python, the .csv file is made to a .py file containing a dictionary of the material parameters
 
 Post processing:
-The reaction forces on te indenter tip as well as the coordinates of the substrate surface in contact with the indenter are saved to seperate files.
+The reaction forces on the indenter tip as well as the coordinates of the substrate surface in contact with the indenter are saved to seperate files.
