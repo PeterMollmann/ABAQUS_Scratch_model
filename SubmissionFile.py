@@ -1,6 +1,6 @@
 from abaqus import *
 from abaqusConstants import *
-from PostProcessing import *
+from ProgressiveLoadScratch.PostProcessing import *
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
@@ -16,7 +16,7 @@ indenter = "RockwellIndenter"
 materialModel = "JohnsonCook"
 damageModel = False
 
-depth = -50e-3
+depth = -75e-3
 friction_coefficient = 0.0
 
 # density = 7.8e-9
@@ -35,7 +35,8 @@ os.chdir(rundir)
 
 # Setup scratch model. Only needs to be called once
 ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
-    depth=depth, IndenterToUse=indenter
+    depth=depth,
+    # IndenterToUse=indenter
 )
 
 
@@ -65,7 +66,7 @@ for arg in parameters:
     )
 
     material.JohnsonCookHardening(A=A, B=B, n=n)
-    material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3, Sr=0.0)
+    material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
     material.DamageEvolution(kc=kc, E=E, nu=nu)
     material.SectionAssignment()
 
