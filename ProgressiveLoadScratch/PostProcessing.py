@@ -1,7 +1,7 @@
 from odbAccess import *
 import numpy as np
 
-# import os
+import os
 
 
 def PostProcess(jobName, fileName):
@@ -43,7 +43,8 @@ def PostProcess(jobName, fileName):
 
     outputFileName = fileName + "_SurfCoords.txt"
     outputFilePath = "SimDataOutputs/" + outputFileName
-
+    if not os.path.exists("SimDataOutputs/"):
+        os.makedirs("SimDataOutputs/")
     with open(outputFilePath, "w") as file:
         file.write(
             "NodeLabel, x_undeformed, y_undeformed, z_undeformed, x_deformed, y_deformed, z_deformed\n"
