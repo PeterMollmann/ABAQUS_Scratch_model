@@ -11,18 +11,17 @@ from material_parameters import parameters
 ### ---------------- ###
 # SETTINGS
 ### ---------------- ###
-jobName = "ProgressiveLoadScratchTest"
-indenter = "RockwellIndenter"
-materialModel = "JohnsonCook"
-damageModel = False
+jobName = "ProgressiveLoadScratchTest1"
 
-depth = -75e-3
-
+depth = -50e-3
 
 # Parallelisation
 num_cpus = 6
 num_domains = num_cpus
 
+
+meshSize = [0.040, 0.030, 0.020, 0.010, 0.005]
+meshSizeIdx = 0
 
 # Change abaqus working directory
 rundir = os.path.join("runs", jobName)
@@ -34,7 +33,10 @@ os.chdir(rundir)
 # Setup scratch model. Only needs to be called once
 ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
     depth=depth,
-    # IndenterToUse=indenter
+    SubstrateSizeY=meshSize[meshSizeIdx],
+    SubstrateSizeX=meshSize[meshSizeIdx],
+    SubstrateSizeZ=meshSize[meshSizeIdx],
+    target_time_increment=0.0,
 )
 
 
