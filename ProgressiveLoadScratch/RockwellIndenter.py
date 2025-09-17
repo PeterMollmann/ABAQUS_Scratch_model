@@ -130,12 +130,15 @@ def RockwellIndenter(
             (0.0, 1.0),
         )
     )
-    Model.Part(dimensionality=THREE_D, name=IndenterName, type=DISCRETE_RIGID_SURFACE)
-    Model.parts[IndenterName].BaseShellRevolve(
-        angle=360.0,
-        flipRevolveDirection=OFF,
-        sketch=Sketch,
+    Model.Part(dimensionality=THREE_D, name=IndenterName, type=ANALYTIC_RIGID_SURFACE)
+    Model.parts[IndenterName].AnalyticRigidSurfRevolve(
+        sketch=Model.sketches["__profile__"]
     )
+    # Model.parts[IndenterName].BaseShellRevolve(
+    #     angle=360.0,
+    #     flipRevolveDirection=OFF,
+    #     sketch=Sketch,
+    # )
 
     # Sketch.Line(point1=(xl2, yl2), point2=(0.0, yl2))
     # Sketch.Line(point1=(0.0, yl2), point2=(0.0, 0.0))
@@ -162,17 +165,12 @@ def RockwellIndenter(
         name=indenter_set, referencePoints=(IndenterPart.referencePoints[2],)
     )
 
-    # IndenterPart.Set(
-    #     name=indenter_set,
-    #     cells=IndenterPart.cells.findAt(((xc1, yc1, 0.0),)),
-    # )
-
     IndenterPart.engineeringFeatures.PointMassInertia(
         alpha=0.0,
         composite=0.0,
-        i11=0.1,
-        i22=0.1,
-        i33=0.1,
+        i11=0.0,
+        i22=0.0,
+        i33=0.0,
         mass=1.0,
         name="IndenterInertia",
         region=IndenterPart.sets[indenter_set],
@@ -197,28 +195,28 @@ def RockwellIndenter(
     #### ------------------------------ ####
     #             Meshing
     #### ------------------------------ ####
-    IndenterPart.setMeshControls(
-        regions=IndenterPart.faces.findAt(
-            ((xc1, yc1, 0.0),),
-            ((xl2, yl2, 0.0),),
-        ),
-        technique=SWEEP,
-    )
-    IndenterPart.seedEdgeByBias(
-        biasMethod=SINGLE,
-        constraint=FINER,
-        end2Edges=IndenterPart.edges.findAt(((xc1, yc1, 0.0),)),
-        maxSize=meshMaxSize,
-        minSize=meshMinSize,
-    )
+    # IndenterPart.setMeshControls(
+    #     regions=IndenterPart.faces.findAt(
+    #         ((xc1, yc1, 0.0),),
+    #         ((xl2, yl2, 0.0),),
+    #     ),
+    #     technique=SWEEP,
+    # )
+    # IndenterPart.seedEdgeByBias(
+    #     biasMethod=SINGLE,
+    #     constraint=FINER,
+    #     end2Edges=IndenterPart.edges.findAt(((xc1, yc1, 0.0),)),
+    #     maxSize=meshMaxSize,
+    #     minSize=meshMinSize,
+    # )
 
-    IndenterPart.seedEdgeBySize(
-        constraint=FINER,
-        deviationFactor=0.1,
-        edges=IndenterPart.edges.findAt((((xl1 + xl2) / 2.0, (yl1 + yl2) / 2.0, 0.0),)),
-        size=meshMaxSize,
-    )
+    # IndenterPart.seedEdgeBySize(
+    #     constraint=FINER,
+    #     deviationFactor=0.1,
+    #     edges=IndenterPart.edges.findAt((((xl1 + xl2) / 2.0, (yl1 + yl2) / 2.0, 0.0),)),
+    #     size=meshMaxSize,
+    # )
 
-    IndenterPart.generateMesh()
+    # IndenterPart.generateMesh()
 
     return Model, IndenterPart, indenter_set, IndenterName, (xl2, yl2)
