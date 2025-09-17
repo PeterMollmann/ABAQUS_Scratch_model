@@ -20,7 +20,11 @@ from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
 
 def ScratchModelSetup(
     depth=-50e-3,
-    # IndenterToUse="RockwellIndenter",  # Options are "RockwellIndenter" or "PyramidIndenter"
+    SubstrateSizeY=0.040,  # Very coarse mesh for fast simulations
+    SubstrateSizeX=0.040,
+    SubstrateSizeZ=0.040,
+    target_time_increment=1e-7,  # if zero, applies mass scaling factor only
+    mass_scale=1e4,
 ):
     """
     Sets up the scratch model with substrate and indenter parts, assembly,
@@ -55,18 +59,27 @@ def ScratchModelSetup(
     # Geometry coordinates for specimen
     xs1 = 0.0  # x coordinate of first point
     ys1 = 0.0  # y coordinate of first point
-    xs2 = 0.96  # x coordinate of second point
-    ys2 = 0.8  # y coordinate of second point
+    xs2 = 1.00  # x coordinate of second point
+    ys2 = 1.00  # y coordinate of second point
     zs1 = 0.0  # z coordinate of first point
-    zs2 = 3.0  # z coordinate of second point - extrude depth
+    zs2 = 3.5  # z coordinate of second point - extrude depth
+
+    # Scratch parameters
+    scratch_depth = depth  # [mm]
+    scratch_length = 2  # [mm]
+
+    # Datum plane offsets
+    dpo_x = xs2 / 4.0
+    # dpo_z = (zs2 - scratch_length) / 2.0
+    dpo_z = 0.5
 
     # Meshing parameters
     IndenterMinSize = 0.0025
     IndenterMaxSize = 0.025
 
-    SubstrateSizeY = 0.040
-    SubstrateSizeX = 0.040
-    SubstrateSizeZ = 0.040
+    # SubstrateSizeY = 0.040
+    # SubstrateSizeX = 0.040
+    # SubstrateSizeZ = 0.040
 
     CoarseMeshSize0 = 0.05
     CoarseMeshSize1 = 0.15
@@ -75,14 +88,6 @@ def ScratchModelSetup(
     # Analysis time
     indentation_time = 0.0001  # [s]
     scratch_time = 0.01  # [s] 0.005
-
-    # Scratch parameters
-    scratch_depth = depth  # [mm]
-    scratch_length = 2  # [mm]
-
-    # Datum plane offsets
-    dpo_x = xs2 / 2.0
-    dpo_z = (zs2 - scratch_length) / 2.0
 
     sample_frequency_indentation = indentation_time / 5.0
     sample_frequency_scratching = scratch_time / 5.0
@@ -162,6 +167,26 @@ def ScratchModelSetup(
         vector=(0.0, 0.0, dpo_z),
     )
 
+    # # FIXME
+    # ScratchModel.Coupling(
+    #     controlPoint=Region(referencePoints=(IndenterInstance.referencePoints[2],)),
+    #     couplingType=KINEMATIC,
+    #     influenceRadius=WHOLE_SURFACE,
+    #     localCsys=None,
+    #     name="Constraint-2",
+    #     surface=Region(
+    #         side1Faces=IndenterInstance.faces.getSequenceFromMask(
+    #             mask=("[#3 ]",),
+    #         )
+    #     ),
+    #     u1=ON,
+    #     u2=ON,
+    #     u3=ON,
+    #     ur1=ON,
+    #     ur2=ON,
+    #     ur3=ON,
+    # )
+
     #### ------------------------------ ####
     #           Scratching Step
     #### ------------------------------ ####
@@ -173,12 +198,12 @@ def ScratchModelSetup(
             (
                 SEMI_AUTOMATIC,
                 MODEL,
-                AT_BEGINNING,
-                mass_scale,
-                0.0,
-                None,
+                AT_BEGINNING if target_time_increment == 0.0 else THROUGHOUT_STEP,
+                mass_scale if target_time_increment == 0.0 else 0.0,
+                target_time_increment,
+                BELOW_MIN if target_time_increment != 0.0 else None,
                 0,
-                0,
+                10,  # Update mass scaling every # equally spaced intervals
                 0.0,
                 0.0,
                 0,
@@ -308,7 +333,7 @@ def ScratchModelSetup(
     ScratchModel.HistoryOutputRequest(
         createStepName=StepName1,
         name="Energy",
-        region=ScratchModelAssembly.allInstances["SubstrateInst"].sets["SubstrateSet"],
+        region=SpecimenInstance.sets["SubstrateSet"],
         timeInterval=sample_force_frequency_scratching,
         variables=("ALLKE", "ALLIE"),
     )
@@ -316,7 +341,7 @@ def ScratchModelSetup(
     ScratchModel.FieldOutputRequest(
         createStepName=StepName1,
         name="FieldOutput",
-        region=ScratchModelAssembly.allInstances["SubstrateInst"].sets["SubstrateSet"],
+        region=SpecimenInstance.sets["SubstrateSet"],
         timeInterval=sample_frequency_scratching,
         variables=(
             "MISES",
@@ -341,6 +366,8 @@ def ScratchModelSetup(
             "DMICRT",
             "STATUS",
             "SDEG",
+            "EMSF",
+            # "DMASS",
         ),
     )
 
@@ -393,7 +420,6 @@ def ScratchModelSetup(
         allowSeparation=ON,
         constraintEnforcementMethod=DEFAULT,
         pressureOverclosure=HARD,
-        # overclosureFactor=0.5,
     )
     # ScratchModel.interactionProperties["IntProp-1"].NormalBehavior(
     #     constraintEnforcementMethod=DEFAULT,
@@ -416,7 +442,12 @@ def ScratchModelSetup(
 
     # Get all relevant contact elements of the substrate (+- 0.1 for ensureing all elements are selected)
     elemsInBox = SpecimenInstance.elements.getByBoundingBox(
-        xs1 - 0.1, ys1 - 0.1, zs1 - 0.1, xs1 + dpo_x + 0.1, ys2 + 0.1, zs2 + 0.1
+        xs1 - 0.1,
+        (ys2 - dpo_x) - 0.1,
+        zs1 - 0.1,
+        xs1 + dpo_x + 0.1,
+        ys2 + 0.1,
+        (zs2 - dpo_z) + 0.1,
     )
 
     slaveSurfaceName = "s_Surf-1"
