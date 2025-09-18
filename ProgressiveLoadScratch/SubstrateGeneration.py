@@ -230,6 +230,8 @@ def SubstrateMeshing(
         end2Edges=SubstratePart.edges.findAt(
             ((xs2, (ys1 + ys2) / 2.0, zs1 + dpo_z),),
             ((xs2, (ys1 + ys2) / 2.0, zs2 - dpo_z),),
+            ((xs1 + dpo_x, (ys1 + ys2) / 2.0, zs1 + dpo_z),),
+            ((xs1 + dpo_x, (ys1 + ys2) / 2.0, zs2 - dpo_z),),
             ((xs1, (ys1 + ys2) / 2.0, zs1),),
             ((xs1, (ys1 + ys2) / 2.0, zs2),),
             ((xs1 + dpo_x, (ys1 + ys2) / 2.0, zs1),),
