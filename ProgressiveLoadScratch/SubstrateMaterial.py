@@ -121,7 +121,7 @@ class SubstrateMaterialAssignment:
         # eps_f = d1 + d2*exp(-d3*)
         return self.mat
 
-    def DamageEvolution(self, kc, E, nu):
+    def DamageEvolution(self, kc, uts, E, nu):
         """
         Assigns damage evolution to the model.
 
@@ -130,10 +130,11 @@ class SubstrateMaterialAssignment:
             E (float): Young's modulus.
             nu (float): Poisson's ratio
         """
-        E_star = E / (1 - nu**2)
-        fractureEnergy = kc**2 / E_star
+        E_star = E / (1 - nu**2)  # [MPa]
+        fractureEnergy = kc**2 / E_star  # [N/mm] = [MJ/m2]
+        delta_f = 2 * fractureEnergy / uts  # [mm]
         self.mat.johnsonCookDamageInitiation.DamageEvolution(
-            table=((fractureEnergy,),), type=ENERGY
+            table=((delta_f,),), type=DISPLACEMENT, softening=LINEAR
         )
         return self.mat
 
