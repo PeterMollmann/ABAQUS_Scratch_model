@@ -4,8 +4,11 @@ from ProgressiveLoadScratch.PostProcessing import *
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
-from material_parameters import parameters
+
+# from material_parameters import parameters
 import numpy as np
+import shutil
+
 
 ### ---------------- ###
 # SETTINGS
@@ -18,8 +21,17 @@ meshSizes = np.array(
         [0.040, 0.040, 0.040],
         [0.030, 0.030, 0.030],
         [0.020, 0.020, 0.020],
+        [0.010, 0.020, 0.020],
+        [0.010, 0.020, 0.010],
         [0.010, 0.010, 0.010],
-        [0.005, 0.005, 0.005],
+        # [0.005, 0.010, 0.010],
+        # [0.010, 0.010, 0.005],
+        # [0.010, 0.005, 0.010],
+        # [0.005, 0.010, 0.005],
+        # [0.010, 0.005, 0.005],
+        # [0.005, 0.005, 0.010],
+        # [0.005, 0.005, 0.005], # Takes too long
+        # [0.002, 0.002, 0.002], # Takes too long
     ]
 )
 
@@ -35,26 +47,26 @@ if not os.path.exists(rundir):
 os.chdir(rundir)
 
 
-depth = -50e-3
-arg = parameters[0]
-run_id = arg["id"]
-rho = float(arg["rho"])
-E = float(arg["E"])
-nu = float(arg["nu"])
-A = float(arg["A"])
-B = float(arg["B"])
-n = float(arg["n"])
-D1 = float(arg["D1"])
-D2 = float(arg["D2"])
-D3 = float(arg["D3"])
-uts = float(arg["uts"])
-kc = float(arg["kc"])
-mu = float(arg["mu"])
+depth = -25e-3
+rho = 7.8e-09
+E = 210000.0
+nu = 0.3
+A = 1430.0
+B = 2545.0
+n = 0.7
+D1 = 0.028
+D2 = 1.0
+D3 = -0.916
+uts = 1600.0
+kc = 2000
+mu = 0.2
 
 
 for id, meshSize in enumerate(meshSizes):
 
-    fileName = "sim" + str(id)
+    fileName = (
+        "mesh" + str(meshSize[0]) + "_" + str(meshSize[1]) + "_" + str(meshSize[2])
+    )
     ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
         depth=depth,
         SubstrateSizeY=meshSize[0],
@@ -74,7 +86,7 @@ for id, meshSize in enumerate(meshSizes):
 
     material.JohnsonCookHardening(A=A, B=B, n=n)
     material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
-    material.DamageEvolution(kc=kc, E=E, nu=nu)
+    material.DamageEvolution(kc=kc, uts=uts, E=E, nu=nu)
     material.SectionAssignment()
     material.UpdateFriction(mu)
 
@@ -117,3 +129,9 @@ for id, meshSize in enumerate(meshSizes):
     PostProcess(jobName, fileName)
 
     mdb.close()
+
+    sta_file = jobName + ".sta"
+    target_dir = "SimDataOutputs/"
+    new_name = fileName + ".sta"
+    dst_file = os.path.join(target_dir, new_name)
+    shutil.move(sta_file, dst_file)
