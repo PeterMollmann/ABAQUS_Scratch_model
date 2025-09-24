@@ -13,7 +13,7 @@ from material_parameters import parameters
 ### ---------------- ###
 jobName = "ProgressiveLoadScratchTest1"
 
-depth = -50e-3
+depth = -25e-3
 
 # Parallelisation
 num_cpus = 6
@@ -68,7 +68,7 @@ for arg in parameters:
 
     material.JohnsonCookHardening(A=A, B=B, n=n)
     material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
-    material.DamageEvolution(kc=kc, E=E, nu=nu)
+    material.DamageEvolution(kc=kc, uts=uts, E=E, nu=nu)
     material.SectionAssignment()
     material.UpdateFriction(mu)
 
