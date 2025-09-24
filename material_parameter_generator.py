@@ -7,16 +7,19 @@ from scipy.stats import qmc
 def MaterialParameterGenerator():
     param_ranges = {
         # "rho": (7.8e-9, 7.8e-9),  # Density [Tonne/mm^3]
-        "E": (180e3, 220e3),  # Young's modulus [MPa]
+        "E": (90e3, 220e3),  # Young's modulus [MPa]
         "nu": (0.25, 0.35),  # Poisson's ratio [-]
-        "A": (400, 700),  # JC hardening A (yield strength) [MPa]
-        "B": (800, 1200),  # JC hardening B [MPa]
-        "n": (0.15, 0.35),  # JC hardening exponent [-]
+        "A": (100, 1500),  # JC hardening A (yield strength) [MPa]
+        "B": (100, 2000),  # JC hardening B [MPa]
+        "n": (0.3, 0.8),  # JC hardening exponent [-]
         "D1": (1, 1.2),  # JC damage parameter [-]
         "D2": (0.05, 0.15),  # JC damage parameter [-]
         "D3": (-0.7, -0.3),  # JC damage parameter [-]
-        "uts": (1000, 1300),  # Ultimate tensile strength [MPa]
-        "kc": (400, 6000),  # Fracture toughness [MPa mm^1/2]
+        "uts": (500, 2000),  # Ultimate tensile strength [MPa]
+        "kc": (
+            400,
+            6000,
+        ),  # Fracture toughness [MPa mm^1/2]. Conversion to MPa m^1/2 is a factor ~31.6 hence the large values. The range is roughly 14-200 MPa m^1/2
         "mu": (0.0, 0.25),  # Interfacial friction [-]
     }
 
@@ -51,6 +54,9 @@ def MaterialParameterGenerator():
             "mu": 3,
         }
     )
+
+    # FIXME: Ensure no duplicates and that uts > A. Make a new sample if not
+
     df.to_csv(output_file_csv, index=False)
 
     param_dicts = df.to_dict(orient="records")
