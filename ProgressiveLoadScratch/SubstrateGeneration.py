@@ -177,7 +177,8 @@ def SubstrateMeshing(
                 elemLibrary=EXPLICIT,
                 secondOrderAccuracy=OFF,
                 distortionControl=DEFAULT,
-                hourglassControl=ENHANCED,
+                hourglassControl=DEFAULT,
+                # elemDeletion=OFF,
             ),
             ElemType(elemCode=UNKNOWN_WEDGE, elemLibrary=EXPLICIT),
             ElemType(
