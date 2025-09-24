@@ -21,3 +21,5 @@ dist/
 # Specific files
 /material_parameters.py
 /material_parameters.csv
+test.cae
+test.jnl
