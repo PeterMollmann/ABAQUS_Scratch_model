@@ -19,11 +19,13 @@ jobName = "MeshConvergence"
 meshSizes = np.array(
     [
         [0.040, 0.040, 0.040],
-        [0.030, 0.030, 0.030],
-        [0.020, 0.020, 0.020],
-        [0.010, 0.020, 0.020],
-        [0.010, 0.020, 0.010],
-        [0.010, 0.010, 0.010],
+        # [0.030, 0.030, 0.030],
+        # [0.020, 0.020, 0.020],
+        # [0.010, 0.020, 0.020],
+        # [0.010, 0.020, 0.010],
+        # [0.010, 0.010, 0.010],
+        # [0.008, 0.008, 0.008],
+        # [0.005, 0.005, 0.005],
         # [0.005, 0.010, 0.010],
         # [0.010, 0.010, 0.005],
         # [0.010, 0.005, 0.010],
@@ -135,3 +137,9 @@ for id, meshSize in enumerate(meshSizes):
     new_name = fileName + ".sta"
     dst_file = os.path.join(target_dir, new_name)
     shutil.move(sta_file, dst_file)
+
+    odb_file = jobName + ".odb"
+    target_dir = "SimDataOutputs/"
+    new_name = fileName + ".odb"
+    dst_file = os.path.join(target_dir, new_name)
+    shutil.move(odb_file, dst_file)
