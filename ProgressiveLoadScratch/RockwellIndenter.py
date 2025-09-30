@@ -14,9 +14,7 @@ from connectorBehavior import *
 from odbAccess import *
 
 
-def RockwellIndenter(
-    Model, meshMinSize, meshMaxSize, R=0.2, theta=60.0, sheet_size=10.0
-):
+def RockwellIndenter(Model, R=0.2, theta=60.0, sheet_size=10.0):
     """
     Makes the Rockwell indenter part in the given Model. First a 2D sketch is made and then revolved to create a 3D part.
     The indenter is modelled as a rigid body with a reference point (and mass) at the center of the spherical tip.
