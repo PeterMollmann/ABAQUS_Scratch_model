@@ -63,10 +63,10 @@ def ScratchModelSetup(
     # Geometry coordinates for specimen
     xs1 = 0.0  # x coordinate of first point
     ys1 = 0.0  # y coordinate of first point
-    xs2 = 1.00  # x coordinate of second point
-    ys2 = 1.00  # y coordinate of second point
+    xs2 = 0.6  # x coordinate of second point
+    ys2 = 0.5  # y coordinate of second point
     zs1 = 0.0  # z coordinate of first point
-    zs2 = 3.5  # z coordinate of second point - extrude depth
+    zs2 = 3.00  # z coordinate of second point - extrude depth
 
     # Scratch parameters
     scratch_depth = depth  # [mm]
@@ -74,16 +74,16 @@ def ScratchModelSetup(
 
     # Datum plane offsets
     dpo_x = xs2 / 3.0
+    dpo_y = 0.1
     # dpo_z = (zs2 - scratch_length) / 2.0
-    dpo_z = 0.5
+    dpo_z = 0.25
 
     # Meshing parameters
-    IndenterMinSize = 0.0025
-    IndenterMaxSize = 0.025
-
     CoarseMeshSize0 = 0.05
     CoarseMeshSize1 = 0.15
-    CoarseMeshSize2 = 0.3
+    CoarseMeshSize2 = (
+        0.30  # might need to change these values with the much smaller domain
+    )
 
     # Analysis time
     indentation_time = 0.0001  # [s]
@@ -104,6 +104,7 @@ def ScratchModelSetup(
         zs1,
         zs2,
         dpo_x,
+        dpo_y,
         dpo_z,
         sheet_size,
     )
@@ -132,6 +133,7 @@ def ScratchModelSetup(
         ys2,
         zs2,
         dpo_x,
+        dpo_y,
         dpo_z,
         CoarseMeshSize0,
         CoarseMeshSize1,
@@ -145,8 +147,6 @@ def ScratchModelSetup(
     ScratchModel, IndenterPart, indenter_set, IndenterName, IndenterCoords = (
         RockwellIndenter(
             ScratchModel,
-            IndenterMinSize,
-            IndenterMaxSize,
             R=0.2,
             theta=60.0,
             sheet_size=sheet_size,
@@ -233,7 +233,8 @@ def ScratchModelSetup(
     ScratchModelAssembly.Set(
         faces=SpecimenInstance.faces.findAt(
             ((xs1, (ys1 + ys2) / 2.0, zs1 + dpo_z / 2.0),),
-            ((xs1, (ys1 + ys2) / 2.0, (zs2 + zs1) / 2.0),),
+            ((xs1, ys1 + dpo_y / 2.0, (zs2 + zs1) / 2.0),),
+            ((xs1, ys2 - dpo_y / 2.0, (zs2 + zs1) / 2.0),),
             ((xs1, (ys1 + ys2) / 2.0, zs2 - dpo_z / 2.0),),
         ),
         name=XsymmetryBCSet,

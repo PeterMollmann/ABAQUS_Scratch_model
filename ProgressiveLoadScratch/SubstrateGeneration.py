@@ -23,6 +23,7 @@ def SubstrateGeneration(
     zs1,
     zs2,
     dpo_x,
+    dpo_y,
     dpo_z,
     sheet_size,
 ):
@@ -40,6 +41,7 @@ def SubstrateGeneration(
         zs1 (float): The extrusion depth start value for the substrate.
         zs2 (float): The extrusion depth end value for the substrate.
         dpo_x (float): Datum plane offset in the x direction for partitioning and meshing.
+        dpo_y (float): Datum plane offset in the y direction for partitioning and meshing.
         dpo_z (float): Datum plane offset in the z direction for partitioning and meshing.
         sheet_size (float): Size of the sketching sheet.
 
@@ -74,6 +76,7 @@ def SubstrateGeneration(
     SubstratePart.DatumPlaneByPrincipalPlane(offset=dpo_x, principalPlane=YZPLANE)
     SubstratePart.DatumPlaneByPrincipalPlane(offset=zs1 + dpo_z, principalPlane=XYPLANE)
     SubstratePart.DatumPlaneByPrincipalPlane(offset=zs2 - dpo_z, principalPlane=XYPLANE)
+    SubstratePart.DatumPlaneByPrincipalPlane(offset=ys2 - dpo_y, principalPlane=XZPLANE)
 
     # Make partition of substrate for mesh refinement along scratch path
     SubstratePart.PartitionCellByDatumPlane(
@@ -99,6 +102,13 @@ def SubstrateGeneration(
         datumPlane=SubstratePart.datums[4],
     )
 
+    SubstratePart.PartitionCellByDatumPlane(
+        cells=SubstratePart.cells.findAt(
+            ((xs1, ys1, (zs2 + zs1) / 2.0),),
+        ),
+        datumPlane=SubstratePart.datums[5],
+    )
+
     SubstrateSet = SubstrateName + "Set"
     SubstratePart.Set(
         cells=SubstratePart.cells.findAt(
@@ -107,6 +117,7 @@ def SubstrateGeneration(
             ((xs1, ys1, zs2),),
             ((xs2, ys1, zs2),),
             ((xs1, ys1, (zs1 + zs2) / 2.0),),
+            ((xs1, ys2, (zs1 + zs2) / 2.0),),
             ((xs2, ys1, (zs1 + zs2) / 2.0),),
         ),
         name=SubstrateSet,
@@ -130,6 +141,7 @@ def SubstrateMeshing(
     ys2,
     zs2,
     dpo_x,
+    dpo_y,
     dpo_z,
     CoarseMeshSize0,
     CoarseMeshSize1,
@@ -150,6 +162,7 @@ def SubstrateMeshing(
         zs1 (float): The extrusion depth start value for the substrate.
         zs2 (float): The extrusion depth end value for the substrate.
         dpo_x (float): Datum plane offset in the x direction for partitioning and meshing.
+        dpo_y (float): Datum plane offset in the y direction for partitioning and meshing.
         dpo_z (float): Datum plane offset in the z direction for partitioning and meshing.
 
 
@@ -165,6 +178,7 @@ def SubstrateMeshing(
             ((xs1, ys1, zs2),),
             ((xs2, ys1, zs2),),
             ((xs1, ys1, (zs1 + zs2) / 2.0),),
+            ((xs1, ys2, (zs1 + zs2) / 2.0),),
             ((xs2, ys1, (zs1 + zs2) / 2.0),),
         ),
         technique=STRUCTURED,
@@ -179,6 +193,11 @@ def SubstrateMeshing(
                 distortionControl=DEFAULT,
                 hourglassControl=DEFAULT,
                 # elemDeletion=OFF,
+                # maxDegradation=0.8,
+                # particleConversion=STRAIN,
+                # particleConversionThreshold=0.200000002980232,
+                # particleConversionPPD=1,
+                # particleConversionKernel=CUBIC,
             ),
             ElemType(elemCode=UNKNOWN_WEDGE, elemLibrary=EXPLICIT),
             ElemType(
@@ -193,6 +212,7 @@ def SubstrateMeshing(
                 ((xs1, ys1, zs2),),
                 ((xs2, ys1, zs2),),
                 ((xs1, ys1, (zs1 + zs2) / 2.0),),
+                ((xs1, ys2, (zs1 + zs2) / 2.0),),
                 ((xs2, ys1, (zs1 + zs2) / 2.0),),
             ),
         ),
@@ -203,7 +223,9 @@ def SubstrateMeshing(
         deviationFactor=0.1,
         edges=SubstratePart.edges.findAt(
             ((xs1, ys2, (zs1 + zs2) / 2.0),),
+            ((xs1, ys2 - dpo_y, (zs1 + zs2) / 2.0),),
             ((xs1 + dpo_x, ys2, (zs1 + zs2) / 2.0),),
+            ((xs1 + dpo_x, ys2 - dpo_y, (zs1 + zs2) / 2.0),),
         ),
         size=SubstrateSizeZ,
     )
@@ -213,9 +235,23 @@ def SubstrateMeshing(
         deviationFactor=0.1,
         edges=SubstratePart.edges.findAt(
             ((xs1 + dpo_x / 2.0, ys2, zs1 + dpo_z),),
+            ((xs1 + dpo_x / 2.0, ys2 - dpo_y, zs1 + dpo_z),),
             ((xs1 + dpo_x / 2.0, ys2, zs2 - dpo_z),),
+            ((xs1 + dpo_x / 2.0, ys2 - dpo_y, zs2 - dpo_z),),
         ),
         size=SubstrateSizeX,
+    )
+
+    SubstratePart.seedEdgeBySize(
+        constraint=FINER,
+        deviationFactor=0.1,
+        edges=SubstratePart.edges.findAt(
+            ((xs1, ys2 - dpo_y / 2.0, zs1 + dpo_z),),
+            ((xs1 + dpo_x, ys2 - dpo_y / 2.0, zs1 + dpo_z),),
+            ((xs1 + dpo_x, ys2 - dpo_y / 2.0, zs2 - dpo_z),),
+            ((xs1 + dpo_x, ys2 - dpo_y / 2.0, zs2 - dpo_z),),
+        ),
+        size=SubstrateSizeY,
     )
 
     SubstratePart.seedEdgeByBias(
