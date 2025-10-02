@@ -1,7 +1,7 @@
 from odbAccess import *
 import numpy as np
-
 import os
+import Constants as C
 
 
 def PostProcess(jobName, fileName):
@@ -12,10 +12,12 @@ def PostProcess(jobName, fileName):
     #    Get displacements
     #### ---------------- ####
     # contactRegionName = "s_Surf-1"
-    surface_names = odb.rootAssembly.surfaces.keys()
-    surface_region_name = next((s for s in surface_names if "S_" in s), None)
+    # surface_names = odb.rootAssembly.surfaces.keys()
+    # surface_region_name = next((s for s in surface_names if "S_" in s), None)
 
-    allNodesInContactRegion = odb.rootAssembly.surfaces[surface_region_name].nodes[0]
+    allNodesInContactRegion = odb.rootAssembly.surfaces[
+        C.slave_surface_name.upper()
+    ].nodes[0]
     unique_nodes = {node.label: node for node in allNodesInContactRegion}.values()
 
     undeformedCoords = [
@@ -30,7 +32,7 @@ def PostProcess(jobName, fileName):
     displacementField = odb.steps.values()[-1].frames[-1].fieldOutputs["U"]
 
     dispSubset = displacementField.getSubset(
-        region=odb.rootAssembly.nodeSets["CONTACTREGIONNODES"]
+        region=odb.rootAssembly.nodeSets[C.contact_region_nodes_name.upper()]
     )
     displacements = {
         value.nodeLabel: np.array(value.data) for value in dispSubset.values

@@ -1,27 +1,23 @@
 from abaqus import *
 from abaqusConstants import *
-from ProgressiveLoadScratch.PostProcessing import *
+import ProgressiveLoadScratch.Constants as C
+from ProgressiveLoadScratch.PostProcessing import PostProcess
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
 from material_parameters import parameters
+from cleanup import cleanupAbaqusJunk
 
 # import pandas as pd
 
 ### ---------------- ###
 # SETTINGS
 ### ---------------- ###
-jobName = "ProgressiveLoadScratchTest1"
-
-depth = -25e-3
-
-# Parallelisation
-num_cpus = 6
-num_domains = num_cpus
+jobName = "ProgressiveLoadScratchTest2"
 
 
-meshSize = [0.040, 0.030, 0.020, 0.010, 0.005]
-meshSizeIdx = 0
+meshSize = [0.040, 0.030, 0.020, 0.010, 0.0075, 0.005]
+meshSizeIdx = 3
 
 # Change abaqus working directory
 rundir = os.path.join("runs", jobName)
@@ -31,12 +27,10 @@ os.chdir(rundir)
 
 
 # Setup scratch model. Only needs to be called once
-ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
-    depth=depth,
+ScratchModel, SubstratePart = ScratchModelSetup(
     SubstrateSizeY=meshSize[meshSizeIdx],
     SubstrateSizeX=meshSize[meshSizeIdx],
     SubstrateSizeZ=meshSize[meshSizeIdx],
-    target_time_increment=0.0,
 )
 
 
@@ -60,7 +54,7 @@ for arg in parameters:
     material = SubstrateMaterialAssignment(
         ScratchModel,
         SubstratePart,
-        SubstrateSet,
+        # SubstrateSet,
         rho=rho,
         youngs_modulus=E,
         poisson_ratio=nu,
@@ -90,8 +84,8 @@ for arg in parameters:
         multiprocessingMode=MPI,
         name=jobName,
         nodalOutputPrecision=SINGLE,
-        numCpus=num_cpus,
-        numDomains=num_domains,
+        numCpus=C.num_cpus,
+        numDomains=C.num_domains,
         parallelizationMethodExplicit=DOMAIN,
         queue=None,
         resultsFormat=ODB,
@@ -111,3 +105,4 @@ for arg in parameters:
     PostProcess(jobName, fileName)
 
 mdb.close()
+cleanupAbaqusJunk()

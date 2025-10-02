@@ -13,6 +13,7 @@ from visualization import *
 from connectorBehavior import *
 from odbAccess import *
 import numpy as np
+import Constants as C
 
 
 class SubstrateMaterialAssignment:
@@ -22,7 +23,6 @@ class SubstrateMaterialAssignment:
         self,
         ScratchModel,
         SubstratePart,
-        SubstrateSet,
         rho,
         youngs_modulus,
         poisson_ratio,
@@ -33,7 +33,6 @@ class SubstrateMaterialAssignment:
         Args:
             ScratchModel: The Abaqus model object.
             SubstratePart: The Abaqus part object of the substrate.
-            SubstrateSet: The name of the set containing all the substrate cells.
             rho (float): Density of the substrate material.
             youngs_modulus (float): Young's modulus of the substrate material.
             poisson_ratio (float): Poisson's ratio of the substrate material.
@@ -41,7 +40,6 @@ class SubstrateMaterialAssignment:
 
         self.ScratchModel = ScratchModel
         self.SubstratePart = SubstratePart
-        self.SubstrateSet = SubstrateSet
         self.youngs_modulus = youngs_modulus
 
         self.MaterialName = "SubstrateMaterial"
@@ -155,7 +153,7 @@ class SubstrateMaterialAssignment:
             offset=0.0,
             offsetField="",
             offsetType=MIDDLE_SURFACE,
-            region=self.SubstratePart.sets[self.SubstrateSet],
+            region=self.SubstratePart.sets[C.substrate_set_name],
             sectionName="SubstrateSection",
             thicknessAssignment=FROM_SECTION,
         )

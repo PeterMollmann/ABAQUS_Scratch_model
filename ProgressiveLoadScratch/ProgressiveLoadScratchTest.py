@@ -14,15 +14,15 @@ from connectorBehavior import *
 from odbAccess import *
 from RockwellIndenter import RockwellIndenter
 from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
+import Constants as C
 
 # from SubstratePartitionPattern import FullPartitionOfFace
 
 
 def ScratchModelSetup(
-    depth=-50e-3,
-    SubstrateSizeY=0.040,  # Very coarse mesh for fast simulations
-    SubstrateSizeX=0.040,
-    SubstrateSizeZ=0.040,
+    SubstrateSizeY=0.020,  # Very coarse mesh for fast simulations
+    SubstrateSizeX=0.020,
+    SubstrateSizeZ=0.020,
     target_time_increment=0.0,  # if zero, applies mass scaling factor only
     mass_scale=1e4,
 ):
@@ -37,7 +37,6 @@ def ScratchModelSetup(
     Remember to use consistent units as abaqus does not check for unit consistency! This document uses SI(mm) units.
 
     Args:
-        depth (float): The depth of the scratch indentation in mm. Default is -50e-3 (i.e., -0.05 micrometer).
         SubstrateSizeX: The mesh size of the refined area in the x-direction
         SubstrateSizeY: The mesh size of the refined area in the y-direction
         SubstrateSizeZ: The mesh size of the refined area in the z-direction
@@ -47,7 +46,6 @@ def ScratchModelSetup(
     Returns:
         ScratchModel: The Abaqus model object with the complete scratch test setup.
         SubstratePart: The Abaqus part object of the substrate.
-        SubstrateSet: The name of the set containing all the substrate cells.
     """
 
     # Set the replay options
@@ -57,126 +55,45 @@ def ScratchModelSetup(
 
     ScratchModel = mdb.models["Model-1"]
 
-    # Parameters for sketching
-    sheet_size = 10
-
-    # Geometry coordinates for specimen
-    xs1 = 0.0  # x coordinate of first point
-    ys1 = 0.0  # y coordinate of first point
-    xs2 = 0.6  # x coordinate of second point
-    ys2 = 0.5  # y coordinate of second point
-    zs1 = 0.0  # z coordinate of first point
-    zs2 = 3.00  # z coordinate of second point - extrude depth
-
-    # Scratch parameters
-    scratch_depth = depth  # [mm]
-    scratch_length = 2  # [mm]
-
-    # Datum plane offsets
-    dpo_x = xs2 / 3.0
-    dpo_y = 0.1
-    # dpo_z = (zs2 - scratch_length) / 2.0
-    dpo_z = 0.25
-
-    # Meshing parameters
-    CoarseMeshSize0 = 0.05
-    CoarseMeshSize1 = 0.15
-    CoarseMeshSize2 = (
-        0.30  # might need to change these values with the much smaller domain
-    )
-
-    # Analysis time
-    indentation_time = 0.0001  # [s]
-    scratch_time = 0.01  # [s]
-
-    # Output frequencies
-    sample_frequency_indentation = indentation_time / 5.0
-    sample_frequency_scratching = scratch_time / 5.0
-    sample_force_frequency_scratching = scratch_time / 100.0
-
     # Create and mesh substate
-    ScratchModel, SubstratePart, _, SubstrateSet = SubstrateGeneration(
+    SubstratePart = SubstrateGeneration(
         ScratchModel,
-        xs1,
-        ys1,
-        xs2,
-        ys2,
-        zs1,
-        zs2,
-        dpo_x,
-        dpo_y,
-        dpo_z,
-        sheet_size,
     )
 
-    # FullPartitionOfFace(
-    #     SubstratePart,
-    #     xs1,
-    #     xs2,
-    #     ys1,
-    #     ys2,
-    #     zs1,
-    #     zs2,
-    #     dpo_x,
-    #     dpo_z,
-    #     2.5,
-    #     SubstrateSizeX,
-    #     SubstrateSizeZ,
-    # )
-
-    SubstratePart = SubstrateMeshing(
+    SubstrateMeshing(
         SubstratePart,
-        xs1,
-        ys1,
-        zs1,
-        xs2,
-        ys2,
-        zs2,
-        dpo_x,
-        dpo_y,
-        dpo_z,
-        CoarseMeshSize0,
-        CoarseMeshSize1,
-        CoarseMeshSize2,
         SubstrateSizeX,
         SubstrateSizeY,
         SubstrateSizeZ,
     )
 
     # Create and mesh indenter
-    ScratchModel, IndenterPart, indenter_set, IndenterName, IndenterCoords = (
-        RockwellIndenter(
-            ScratchModel,
-            R=0.2,
-            theta=60.0,
-            sheet_size=sheet_size,
-        )
-    )
+    IndenterPart = RockwellIndenter(ScratchModel)
 
     #### ------------------------------ ####
     #            Assembly
     #### ------------------------------ ####
-    indenterInstanceName = IndenterName + "Inst"
-    specimenInstanceName = "SubstrateInst"
+    # indenterInstanceName = IndenterName + "Inst"
+    # C.substrate_instance_name = "SubstrateInst"
     ScratchModelAssembly = ScratchModel.rootAssembly
     ScratchModelAssembly.DatumCsysByDefault(CARTESIAN)
     ScratchModelAssembly.Instance(
-        dependent=ON, name=indenterInstanceName, part=IndenterPart
+        dependent=ON, name=C.indenter_instance_name, part=IndenterPart
     )
-    IndenterInstance = ScratchModelAssembly.instances[indenterInstanceName]
+    IndenterInstance = ScratchModelAssembly.instances[C.indenter_instance_name]
     ScratchModelAssembly.Instance(
-        dependent=ON, name=specimenInstanceName, part=SubstratePart
+        dependent=ON, name=C.substrate_instance_name, part=SubstratePart
     )
-    SpecimenInstance = ScratchModelAssembly.instances[specimenInstanceName]
+    SubstrateInstance = ScratchModelAssembly.instances[C.substrate_instance_name]
 
     eps = 0.00
     ScratchModelAssembly.translate(
-        instanceList=(indenterInstanceName,), vector=(0.0, ys2 + eps, 0.0)
+        instanceList=(C.indenter_instance_name,), vector=(0.0, C.ys2 + eps, 0.0)
     )
 
     ScratchModelAssembly.translate(
-        instanceList=(indenterInstanceName,),
-        vector=(0.0, 0.0, dpo_z),
+        instanceList=(C.indenter_instance_name,),
+        vector=(0.0, 0.0, C.dpo_z),
     )
 
     #### ------------------------------ ####
@@ -204,20 +121,20 @@ def ScratchModelSetup(
         ),
         name=StepName1,
         previous="Initial",
-        timePeriod=scratch_time,
+        timePeriod=C.scratch_time,
         nlgeom=ON,
     )
 
     # Fixed constraint on the bottom two faces
     fixedBCSet = "FIXEDBCSET"
     ScratchModelAssembly.Set(
-        faces=SpecimenInstance.faces.findAt(
-            ((xs1 + dpo_x / 2.0, ys1, zs1 + dpo_z / 2.0),),
-            ((xs1 + dpo_x / 2.0, ys1, (zs2 + zs1) / 2.0),),
-            ((xs1 + dpo_x / 2.0, ys1, zs2 - dpo_z / 2.0),),
-            ((xs2 - dpo_x / 2.0, ys1, zs2 - dpo_z / 2.0),),
-            ((xs2 - dpo_x / 2.0, ys1, (zs2 + zs1) / 2.0),),
-            ((xs2 - dpo_x / 2.0, ys1, zs1 + dpo_z / 2.0),),
+        faces=SubstrateInstance.faces.findAt(
+            ((C.xs1 + C.dpo_x / 2.0, C.ys1, C.zs1 + C.dpo_z / 2.0),),
+            ((C.xs1 + C.dpo_x / 2.0, C.ys1, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs1 + C.dpo_x / 2.0, C.ys1, C.zs2 - C.dpo_z / 2.0),),
+            ((C.xs2 - C.dpo_x / 2.0, C.ys1, C.zs2 - C.dpo_z / 2.0),),
+            ((C.xs2 - C.dpo_x / 2.0, C.ys1, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs2 - C.dpo_x / 2.0, C.ys1, C.zs1 + C.dpo_z / 2.0),),
         ),
         name=fixedBCSet,
     )
@@ -231,11 +148,11 @@ def ScratchModelSetup(
     # Symmetry constraint
     XsymmetryBCSet = "XsymmetryBCSet"
     ScratchModelAssembly.Set(
-        faces=SpecimenInstance.faces.findAt(
-            ((xs1, (ys1 + ys2) / 2.0, zs1 + dpo_z / 2.0),),
-            ((xs1, ys1 + dpo_y / 2.0, (zs2 + zs1) / 2.0),),
-            ((xs1, ys2 - dpo_y / 2.0, (zs2 + zs1) / 2.0),),
-            ((xs1, (ys1 + ys2) / 2.0, zs2 - dpo_z / 2.0),),
+        faces=SubstrateInstance.faces.findAt(
+            ((C.xs1, (C.ys1 + C.ys2) / 2.0, C.zs1 + C.dpo_z / 2.0),),
+            ((C.xs1, C.ys1 + C.dpo_y / 2.0, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs1, C.ys2 - C.dpo_y / 2.0, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs1, (C.ys1 + C.ys2) / 2.0, C.zs2 - C.dpo_z / 2.0),),
         ),
         name=XsymmetryBCSet,
     )
@@ -249,26 +166,26 @@ def ScratchModelSetup(
     # Z axis symmetry constraint
     ZsymmetryBCSet = "ZsymmetryBCSet"
     ScratchModelAssembly.Set(
-        faces=SpecimenInstance.faces.findAt(
-            ((xs1 + dpo_x / 2.0, (ys2 + ys1) / 2.0, zs1),),
-            ((xs2 - dpo_x / 2.0, (ys2 + ys1) / 2.0, zs1),),
-            ((xs1 + dpo_x / 2.0, (ys2 + ys1) / 2.0, zs2),),
-            ((xs2 - dpo_x / 2.0, (ys2 + ys1) / 2.0, zs2),),
+        faces=SubstrateInstance.faces.findAt(
+            ((C.xs1 + C.dpo_x / 2.0, (C.ys2 + C.ys1) / 2.0, C.zs1),),
+            ((C.xs2 - C.dpo_x / 2.0, (C.ys2 + C.ys1) / 2.0, C.zs1),),
+            ((C.xs1 + C.dpo_x / 2.0, (C.ys2 + C.ys1) / 2.0, C.zs2),),
+            ((C.xs2 - C.dpo_x / 2.0, (C.ys2 + C.ys1) / 2.0, C.zs2),),
         ),
         name=ZsymmetryBCSet,
     )
     ScratchModel.ZsymmBC(
         createStepName=StepName1,
         localCsys=None,
-        name="y_axis_symmetry",
+        name="z_axis_symmetry",
         region=ScratchModelAssembly.sets[ZsymmetryBCSet],
     )
 
     ScratchModel.TabularAmplitude(
         data=(
             (0.0, 0.0),
-            (scratch_time, 1.0),
-            (indentation_time + scratch_time, 0.0),
+            (C.scratch_time, 1.0),
+            (C.unload_time + C.scratch_time, 0.0),
         ),
         name="Amp-1",
         smooth=SOLVER_DEFAULT,
@@ -283,10 +200,10 @@ def ScratchModelSetup(
         fixed=OFF,
         localCsys=None,
         name="IndenterScratching",
-        region=IndenterInstance.sets[indenter_set],
+        region=IndenterInstance.sets[C.indenter_set_name],
         u1=UNSET,
-        u2=scratch_depth,
-        u3=scratch_length,
+        u2=C.scratch_depth,
+        u3=C.scratch_length,
         ur1=UNSET,
         ur2=UNSET,
         ur3=UNSET,
@@ -300,7 +217,7 @@ def ScratchModelSetup(
         fixed=OFF,
         localCsys=None,
         name="IndenterConstraint",
-        region=IndenterInstance.sets[indenter_set],
+        region=IndenterInstance.sets[C.indenter_set_name],
         u1=SET,
         u2=UNSET,
         u3=UNSET,
@@ -317,24 +234,24 @@ def ScratchModelSetup(
         createStepName=StepName1,
         name="ReactionForces",
         rebar=EXCLUDE,
-        region=IndenterInstance.sets[indenter_set],
+        region=IndenterInstance.sets[C.indenter_set_name],
         sectionPoints=DEFAULT,
-        timeInterval=sample_force_frequency_scratching,
+        timeInterval=C.sample_force_frequency,
         variables=("RF1", "RF2", "RF3"),
     )
     ScratchModel.HistoryOutputRequest(
         createStepName=StepName1,
         name="Energy",
-        region=SpecimenInstance.sets["SubstrateSet"],
-        timeInterval=sample_force_frequency_scratching,
+        region=SubstrateInstance.sets["SubstrateSet"],
+        timeInterval=C.sample_force_frequency,
         variables=("ALLKE", "ALLIE"),
     )
 
     ScratchModel.FieldOutputRequest(
         createStepName=StepName1,
         name="FieldOutput",
-        region=SpecimenInstance.sets["SubstrateSet"],
-        timeInterval=sample_frequency_scratching,
+        region=SubstrateInstance.sets["SubstrateSet"],
+        timeInterval=C.sample_frequency_scratching,
         variables=(
             "MISES",
             "TRIAX",
@@ -378,7 +295,7 @@ def ScratchModelSetup(
         improvedDtMethod=ON,
         name=StepName2,
         previous=StepName1,
-        timePeriod=indentation_time,
+        timePeriod=C.unload_time,
     )
 
     ScratchModel.boundaryConditions["IndenterConstraint"].setValuesInStep(
@@ -386,7 +303,7 @@ def ScratchModelSetup(
     )
 
     ScratchModel.fieldOutputRequests["FieldOutput"].setValuesInStep(
-        stepName=StepName2, timeInterval=sample_frequency_indentation
+        stepName=StepName2, timeInterval=C.sample_frequency_unloading
     )
 
     # ScratchModel.fieldOutputRequests["ContactForce"].setValuesInStep(
@@ -394,16 +311,17 @@ def ScratchModelSetup(
     # )
 
     ScratchModel.historyOutputRequests["ReactionForces"].setValuesInStep(
-        stepName=StepName2, timeInterval=sample_frequency_indentation
+        stepName=StepName2, timeInterval=C.sample_frequency_unloading
     )
 
     ScratchModel.historyOutputRequests["Energy"].setValuesInStep(
-        stepName=StepName2, timeInterval=sample_frequency_indentation
+        stepName=StepName2, timeInterval=C.sample_frequency_unloading
     )
 
     #### ------------------------------ ####
     #          Contact modelling
     #### ------------------------------ ####
+    # Initiate tangential behaviour with zero friction. Friction is updated in another file.
     ScratchModel.ContactProperty("IntProp-1")
     ScratchModel.interactionProperties["IntProp-1"].TangentialBehavior(
         formulation=PENALTY, table=((0.0,),), fraction=0.005
@@ -422,29 +340,26 @@ def ScratchModelSetup(
     #     pressureOverclosure=SCALE_FACTOR,
     # )
 
-    masterSurfaceName = "m_Surf-1"
-    xl2, yl2 = IndenterCoords
     ScratchModelAssembly.Surface(
-        name=masterSurfaceName,
+        name=C.master_surface_name,
         side1Faces=IndenterInstance.faces.findAt(
-            ((xs1, ys2 + eps, zs1 + dpo_z),),
-            ((xs1 + xl2, ys2 + yl2 + eps, zs1 + dpo_z),),
+            ((C.xs1, C.ys2 + eps, C.zs1 + C.dpo_z),),
+            ((C.xs1 + C.xl2, C.ys2 + C.yl2 + eps, C.zs1 + C.dpo_z),),
         ),
     )
 
     # Get all relevant contact elements of the substrate (+- 0.1 for ensureing all elements are selected)
-    elemsInBox = SpecimenInstance.elements.getByBoundingBox(
-        xs1 - 0.1,
-        (ys2 - dpo_x) - 0.1,
-        zs1 - 0.1,
-        xs1 + dpo_x + 0.1,
-        ys2 + 0.1,
-        (zs2 - dpo_z) + 0.1,
+    elemsInBox = SubstrateInstance.elements.getByBoundingBox(
+        C.xs1 - 0.1,
+        (C.ys2 - C.dpo_y) - 0.1,
+        C.zs1 + C.dpo_z - 0.1,
+        C.xs1 + C.dpo_x + 0.1,
+        C.ys2 + 0.1,
+        (C.zs2 - C.dpo_z) + 0.1,
     )
 
-    slaveSurfaceName = "s_Surf-1"
     ScratchModelAssembly.Surface(
-        name=slaveSurfaceName,
+        name=C.slave_surface_name,
         face1Elements=elemsInBox,
         face2Elements=elemsInBox,
         face3Elements=elemsInBox,
@@ -458,8 +373,8 @@ def ScratchModelSetup(
     ScratchModel.interactions["Int-1"].includedPairs.setValuesInStep(
         addPairs=(
             (
-                ScratchModelAssembly.surfaces[masterSurfaceName],
-                ScratchModelAssembly.surfaces[slaveSurfaceName],
+                ScratchModelAssembly.surfaces[C.master_surface_name],
+                ScratchModelAssembly.surfaces[C.slave_surface_name],
             ),
         ),
         stepName="Initial",
@@ -470,8 +385,60 @@ def ScratchModelSetup(
     )
 
     ScratchModelAssembly.Set(
-        name="contactRegionNodes",
-        nodes=ScratchModelAssembly.allSurfaces[slaveSurfaceName].nodes,
+        name=C.contact_region_nodes_name,
+        nodes=ScratchModelAssembly.allSurfaces[C.slave_surface_name].nodes,
     )
 
-    return (ScratchModel, SubstratePart, SubstrateSet)
+    # ScratchModel.AdaptiveMeshControl(name="Ada-1")
+    # ScratchModel.DisplacementAdaptiveMeshConstraint(
+    #     amplitude=UNSET,
+    #     createStepName=StepName1,
+    #     localCsys=None,
+    #     motionType=FOLLOW,
+    #     name="Ada-Cons-1",
+    #     region=SubstrateInstance.faces.findAt(
+    #         (C.xs1, C.ys2 - C.dpo_y / 2.0, (C.zs2 + C.zs1) / 2.0),
+    #     ),
+    #     u1=0.0,
+    #     u2=UNSET,
+    #     u3=UNSET,
+    #     ur1=UNSET,
+    #     ur2=UNSET,
+    #     ur3=UNSET,
+    # )
+    # ScratchModel.steps[StepName1].AdaptiveMeshDomain(
+    #     controls="Ada-1",
+    #     meshSweeps=5,
+    #     frequency=20,
+    #     initialMeshSweeps=5,
+    #     region=Region(
+    #         cells=SubstrateInstance.cells.findAt(
+    #             ((C.xs1, C.ys1, C.zs1),),
+    #             ((C.xs2, C.ys1, C.zs1),),
+    #             ((C.xs1, C.ys1, C.zs2),),
+    #             ((C.xs2, C.ys1, C.zs2),),
+    #             ((C.xs1, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+    #             ((C.xs1, C.ys2, (C.zs1 + C.zs2) / 2.0),),
+    #             ((C.xs2, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+    #         )
+    #     ),
+    # )
+    # ScratchModel.steps[StepName2].AdaptiveMeshDomain(
+    #     controls="Ada-1",
+    #     meshSweeps=5,
+    #     frequency=20,
+    #     initialMeshSweeps=5,
+    #     region=Region(
+    #         cells=SubstrateInstance.cells.findAt(
+    #             ((C.xs1, C.ys1, C.zs1),),
+    #             ((C.xs2, C.ys1, C.zs1),),
+    #             ((C.xs1, C.ys1, C.zs2),),
+    #             ((C.xs2, C.ys1, C.zs2),),
+    #             ((C.xs1, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+    #             ((C.xs1, C.ys2, (C.zs1 + C.zs2) / 2.0),),
+    #             ((C.xs2, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+    #         )
+    #     ),
+    # )
+
+    return ScratchModel, SubstratePart
