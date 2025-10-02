@@ -13,7 +13,7 @@ from visualization import *
 from connectorBehavior import *
 from odbAccess import *
 import numpy as np
-import Constants as C
+from . import Constants as C
 
 
 class SubstrateMaterialAssignment:

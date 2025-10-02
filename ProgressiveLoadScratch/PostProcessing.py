@@ -1,7 +1,7 @@
 from odbAccess import *
 import numpy as np
 import os
-import Constants as C
+from . import Constants as C
 
 
 def PostProcess(jobName, fileName):

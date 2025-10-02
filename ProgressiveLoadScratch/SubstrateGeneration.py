@@ -12,7 +12,7 @@ from sketch import *
 from visualization import *
 from connectorBehavior import *
 from odbAccess import *
-import Constants as C
+from . import Constants as C
 
 
 def SubstrateGeneration(

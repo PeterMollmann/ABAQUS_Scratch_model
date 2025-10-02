@@ -12,9 +12,9 @@ from sketch import *
 from visualization import *
 from connectorBehavior import *
 from odbAccess import *
-from RockwellIndenter import RockwellIndenter
-from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
-import Constants as C
+from .RockwellIndenter import RockwellIndenter
+from .SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
+from . import Constants as C
 
 # from SubstratePartitionPattern import FullPartitionOfFace
 
