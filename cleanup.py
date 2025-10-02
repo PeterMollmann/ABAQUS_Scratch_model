@@ -30,6 +30,7 @@ def cleanupAbaqusJunk():
         "*.dat",
         # "*.odb",
         # "*.sta",
+        "*.env",
     ]
     for ext in extension_list:
         for file in glob.glob(ext):
