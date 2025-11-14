@@ -15,7 +15,7 @@ from odbAccess import *
 from . import Constants as C
 
 
-def RockwellIndenter(Model):
+def RockwellIndenter(Model, rigid=True):
     """
     Makes the Rockwell indenter part in the given Model. First a 2D sketch is made and then revolved to create a 3D part.
     The indenter is modelled as a rigid body with a reference point (and mass) at the center of the spherical tip.
@@ -124,26 +124,23 @@ def RockwellIndenter(Model):
             (0.0, 1.0),
         )
     )
-    Model.Part(
-        dimensionality=THREE_D, name=C.indenter_name, type=ANALYTIC_RIGID_SURFACE
-    )
-    Model.parts[C.indenter_name].AnalyticRigidSurfRevolve(
-        sketch=Model.sketches["__profile__"]
-    )
-    # Model.parts[IndenterName].BaseShellRevolve(
-    #     angle=360.0,
-    #     flipRevolveDirection=OFF,
-    #     sketch=Sketch,
-    # )
 
-    # Sketch.Line(point1=(xl2, yl2), point2=(0.0, yl2))
-    # Sketch.Line(point1=(0.0, yl2), point2=(0.0, 0.0))
-    # Model.Part(dimensionality=THREE_D, name=IndenterName, type=DEFORMABLE_BODY)
-    # Model.parts[IndenterName].BaseSolidRevolve(
-    #     angle=360.0,
-    #     flipRevolveDirection=OFF,
-    #     sketch=Sketch,
-    # )
+    if rigid:
+        Model.Part(
+            dimensionality=THREE_D, name=C.indenter_name, type=ANALYTIC_RIGID_SURFACE
+        )
+        Model.parts[C.indenter_name].AnalyticRigidSurfRevolve(
+            sketch=Model.sketches["__profile__"]
+        )
+    else:
+        Sketch.Line(point1=(C.xl2, C.yl2), point2=(0.0, C.yl2))
+        Sketch.Line(point1=(0.0, C.yl2), point2=(0.0, 0.0))
+        Model.Part(dimensionality=THREE_D, name=C.indenter_name, type=DEFORMABLE_BODY)
+        Model.parts[C.indenter_name].BaseSolidRevolve(
+            angle=360.0,
+            flipRevolveDirection=OFF,
+            sketch=Sketch,
+        )
     del Sketch
     IndenterPart = Model.parts[C.indenter_name]
 
@@ -160,59 +157,120 @@ def RockwellIndenter(Model):
     IndenterPart.Set(
         name=C.indenter_set_name, referencePoints=(IndenterPart.referencePoints[2],)
     )
+    if rigid:
+        IndenterPart.engineeringFeatures.PointMassInertia(
+            alpha=0.0,
+            composite=0.0,
+            i11=0.0,
+            i22=0.0,
+            i33=0.0,
+            mass=1.0,
+            name="IndenterInertia",
+            region=IndenterPart.sets[C.indenter_set_name],
+        )
+    else:
+        mat = Model.Material(name="IndenterMaterial")
+        mat.Density(table=((3.5e-3,),))
+        mat.Elastic(table=((1050e3, 0.2),))
+        Model.HomogeneousSolidSection(
+            material="IndenterMaterial", name="IndenterSection", thickness=None
+        )
 
-    IndenterPart.engineeringFeatures.PointMassInertia(
-        alpha=0.0,
-        composite=0.0,
-        i11=0.0,
-        i22=0.0,
-        i33=0.0,
-        mass=1.0,
-        name="IndenterInertia",
-        region=IndenterPart.sets[C.indenter_set_name],
-    )
+        IndenterPart.Set(
+            name="IndenterBodySet",
+            cells=IndenterPart.cells.findAt(
+                ((C.xc1, C.yc1, 0.0),),
+                ((C.xl2, C.yl2, 0.0),),
+            ),
+        )
 
-    # mat = Model.Material(name="IndenterMaterial")
-    # mat.Density(table=((3.5e-3,),))
-    # mat.Elastic(table=((1050e3, 0.2),))
-    # Model.HomogeneousSolidSection(
-    #     material="IndenterMaterial", name="IndenterSection", thickness=None
-    # )
-
-    # IndenterPart.SectionAssignment(
-    #     offset=0.0,
-    #     offsetField="",
-    #     offsetType=MIDDLE_SURFACE,
-    #     region=IndenterPart.sets[indenter_set],
-    #     sectionName="IndenterSection",
-    #     thicknessAssignment=FROM_SECTION,
-    # )
+        IndenterPart.SectionAssignment(
+            offset=0.0,
+            offsetField="",
+            offsetType=MIDDLE_SURFACE,
+            region=IndenterPart.sets["IndenterBodySet"],
+            sectionName="IndenterSection",
+            thicknessAssignment=FROM_SECTION,
+        )
 
     #### ------------------------------ ####
     #             Meshing
     #### ------------------------------ ####
     # IndenterPart.setMeshControls(
-    #     regions=IndenterPart.faces.findAt(
-    #         ((xc1, yc1, 0.0),),
-    #         ((xl2, yl2, 0.0),),
+    #     elemShape=TET,
+    #     regions=IndenterPart.cells.findAt(
+    #         ((C.xc1, C.yc1, 0.0),),
+    #         ((C.xl2, C.yl2, 0.0),),
     #     ),
-    #     technique=SWEEP,
-    # )
-    # IndenterPart.seedEdgeByBias(
-    #     biasMethod=SINGLE,
-    #     constraint=FINER,
-    #     end2Edges=IndenterPart.edges.findAt(((xc1, yc1, 0.0),)),
-    #     maxSize=meshMaxSize,
-    #     minSize=meshMinSize,
+    #     technique=FREE,
     # )
 
-    # IndenterPart.seedEdgeBySize(
-    #     constraint=FINER,
-    #     deviationFactor=0.1,
-    #     edges=IndenterPart.edges.findAt((((xl1 + xl2) / 2.0, (yl1 + yl2) / 2.0, 0.0),)),
-    #     size=meshMaxSize,
+    # IndenterPart.setElementType(
+    #     elemTypes=(
+    #         ElemType(elemCode=UNKNOWN_HEX, elemLibrary=EXPLICIT),
+    #         ElemType(elemCode=UNKNOWN_WEDGE, elemLibrary=EXPLICIT),
+    #         ElemType(
+    #             elemCode=C3D10M,
+    #             elemLibrary=EXPLICIT,
+    #             secondOrderAccuracy=OFF,
+    #             distortionControl=OFF,
+    #             elemDeletion=OFF,
+    #         ),
+    #     ),
+    #     regions=IndenterPart.sets["IndenterBodySet"],
+    # )
+    # IndenterPart.setElementType(
+    #     elemTypes=(
+    #         ElemType(
+    #             elemCode=C3D8R,
+    #             elemLibrary=EXPLICIT,
+    #             secondOrderAccuracy=OFF,
+    #             distortionControl=OFF,
+    #             hourglassControl=DEFAULT,
+    #             elemDeletion=OFF,
+    #             # maxDegradation=C.max_degradation,
+    #         ),
+    #         ElemType(elemCode=C3D6, elemLibrary=EXPLICIT),
+    #         ElemType(
+    #             elemCode=C3D10M,
+    #             elemLibrary=EXPLICIT,
+    #             secondOrderAccuracy=OFF,
+    #             distortionControl=OFF,
+    #             elemDeletion=OFF,
+    #         ),
+    #     ),
+    #     regions=IndenterPart.sets["IndenterBodySet"],
     # )
 
-    # IndenterPart.generateMesh()
+    if not rigid:
+        IndenterPart.seedEdgeBySize(
+            # biasMethod=SINGLE,
+            constraint=FINER,
+            # end2Edges=IndenterPart.edges.findAt(((C.xc1, C.yc1, 0.0),)),
+            edges=IndenterPart.edges.findAt(((C.xc1, C.yc1, 0.0),)),
+            # maxSize=C.indenter_mesh_large,
+            # minSize=C.indenter_mesh_small,
+            size=C.indenter_mesh_small,
+        )
+
+        # IndenterPart.seedEdgeBySize(
+        #     constraint=FINER,
+        #     deviationFactor=0.1,
+        #     edges=IndenterPart.edges.findAt(
+        #         (((C.xl1 + C.xl2) / 2.0, (C.yl1 + C.yl2) / 2.0, 0.0),)
+        #     ),
+        #     size=C.indenter_mesh_large,
+        # )
+        IndenterPart.seedEdgeByBias(
+            biasMethod=SINGLE,
+            constraint=FINER,
+            end2Edges=IndenterPart.edges.findAt(
+                (((C.xl1 + C.xl2) / 2.0, (C.yl1 + C.yl2) / 2.0, 0.0),)
+            ),
+            maxSize=C.indenter_mesh_large,
+            minSize=C.indenter_mesh_small,
+        )
+
+        IndenterPart.generateMesh()
 
     return IndenterPart
