@@ -32,3 +32,5 @@ MassScaleConvergence.py
 MeshConvergence.py
 VelocityConvergence.py
 MaterialParamsStudy.py
+WearEffect.py
+test.ipynb
