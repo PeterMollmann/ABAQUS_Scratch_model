@@ -18,9 +18,17 @@ __pycache__/
 build/
 dist/
 
-# Specific files
-/material_parameters.py
-/material_parameters.csv
+# Specific files and folders
+/material_parameters/
 test.cae
 test.jnl
 test.py
+/Remesh/
+RemeshSubmissionFile.py
+/ForceControl/
+ForceControlSubmit.py
+IndenterShapeStudy.py
+MassScaleConvergence.py
+MeshConvergence.py
+VelocityConvergence.py
+MaterialParamsStudy.py
