@@ -154,11 +154,7 @@ def SubstrateMeshing(
                 distortionControl=DEFAULT,
                 hourglassControl=DEFAULT,
                 elemDeletion=OFF,
-                maxDegradation=0.8,
-                # particleConversion=STRAIN,
-                # particleConversionThreshold=0.200000002980232,
-                # particleConversionPPD=1,
-                # particleConversionKernel=CUBIC,
+                maxDegradation=C.max_degradation,
             ),
             ElemType(elemCode=C3D6, elemLibrary=EXPLICIT),
             ElemType(
@@ -234,7 +230,7 @@ def SubstrateMeshing(
             ((C.xs1, (C.ys1 + C.ys2) / 2.0, C.zs2),),
             ((C.xs1 + C.dpo_x, (C.ys1 + C.ys2) / 2.0, C.zs1),),
         ),
-        maxSize=C.coarse_mesh_size_2,
+        maxSize=C.coarse_mesh_size_1,
         minSize=SubstrateSizeY,
     )
 

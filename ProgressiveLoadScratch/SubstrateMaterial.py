@@ -116,10 +116,10 @@ class SubstrateMaterialAssignment:
 
         """
         self.mat.JohnsonCookDamageInitiation(table=((d1, d2, d3, d4, d5, Tm, Tt, Sr),))
-        # eps_f = d1 + d2*exp(-d3*)
         return self.mat
 
     def DamageEvolution(self, kc, uts, E, nu):
+        # def DamageEvolution(self, u_pl_f):
         """
         Assigns damage evolution to the model.
 
@@ -130,9 +130,12 @@ class SubstrateMaterialAssignment:
         """
         E_star = E / (1 - nu**2)  # [MPa]
         fractureEnergy = kc**2 / E_star  # [N/mm] = [MJ/m2]
-        delta_f = 2 * fractureEnergy / uts  # [mm]
+        # u_pl_f = 2 * fractureEnergy / uts
+        # self.mat.johnsonCookDamageInitiation.DamageEvolution(
+        #     table=((u_pl_f,),), type=DISPLACEMENT, softening=LINEAR
+        # )
         self.mat.johnsonCookDamageInitiation.DamageEvolution(
-            table=((delta_f,),), type=DISPLACEMENT, softening=LINEAR
+            table=((fractureEnergy,),), type=ENERGY, softening=LINEAR
         )
         return self.mat
 
@@ -159,12 +162,14 @@ class SubstrateMaterialAssignment:
         )
         return self.ScratchModel, self.SubstratePart
 
-    def UpdateFriction(self, mu):
+    def UpdateFrictionAndWear(self, mu, include_wear=False, kappa=None):
+        # def UpdateFrictionAndWear(self, mu, kappa):
         """
         Updates the interfacial coefficient of friction in the tangential behaviour of the contact properties.
 
         Args:
             mu (float): Interfacial coefficient of friction.
+            kappa (float): Wear coefficient.
 
         Returns:
             ScratchModel: The Abaqus model object with updated friction coefficient.
@@ -173,4 +178,8 @@ class SubstrateMaterialAssignment:
         self.ScratchModel.interactionProperties[
             "IntProp-1"
         ].tangentialBehavior.setValues(table=((mu,),))
+        if include_wear:
+            self.ScratchModel.interactionProperties["IntProp-2"].setValues(
+                property=((kappa,),)  # , referenceStress=Hardness
+            )
         return self.ScratchModel
