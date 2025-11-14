@@ -7,17 +7,18 @@ from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
 from material_parameters import parameters
 from cleanup import cleanupAbaqusJunk
+from ProgressiveLoadScratch.helpers import run_job_and_wait
 
-# import pandas as pd
 
 ### ---------------- ###
 # SETTINGS
 ### ---------------- ###
-jobName = "ProgressiveLoadScratchTest2"
+jobName = "MaterialSweep"
 
 
-meshSize = [0.040, 0.030, 0.020, 0.010, 0.0075, 0.005]
+meshSize = [0.040, 0.030, 0.020, 0.010, 0.008, 0.006, 0.004]
 meshSizeIdx = 3
+
 
 # Change abaqus working directory
 rundir = os.path.join("runs", jobName)
@@ -25,84 +26,61 @@ if not os.path.exists(rundir):
     os.makedirs(rundir)
 os.chdir(rundir)
 
-
+include_wear = False
 # Setup scratch model. Only needs to be called once
 ScratchModel, SubstratePart = ScratchModelSetup(
     SubstrateSizeY=meshSize[meshSizeIdx],
     SubstrateSizeX=meshSize[meshSizeIdx],
     SubstrateSizeZ=meshSize[meshSizeIdx],
+    mass_scale=10e4,
+    use_ALE=False,
+    include_wear=include_wear,
 )
+
+start_from_sim_id = 1  # Set to desired starting ID to skip completed simulations
 
 
 for arg in parameters:
     run_id = arg["id"]
+    if int(run_id) < start_from_sim_id:
+        continue
     rho = float(arg["rho"])
     E = float(arg["E"])
     nu = float(arg["nu"])
     A = float(arg["A"])
     B = float(arg["B"])
     n = float(arg["n"])
-    D1 = float(arg["D1"])
-    D2 = float(arg["D2"])
-    D3 = float(arg["D3"])
-    uts = float(arg["uts"])
-    kc = float(arg["kc"])
+    # D1 = float(arg["D1"])
+    # D2 = float(arg["D2"])
+    # D3 = float(arg["D3"])
+    # uts = float(arg["uts"])
+    # kc = float(arg["kc"])
+    # u_pl_f = float(arg["u_pl_f"])
     mu = float(arg["mu"])
+    # kappa = float(arg["kappa"])
+    # H = float(arg["Hardness"])
 
     fileName = "sim" + str(run_id)
 
     material = SubstrateMaterialAssignment(
         ScratchModel,
         SubstratePart,
-        # SubstrateSet,
         rho=rho,
         youngs_modulus=E,
         poisson_ratio=nu,
     )
 
     material.JohnsonCookHardening(A=A, B=B, n=n)
-    material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
-    material.DamageEvolution(kc=kc, uts=uts, E=E, nu=nu)
+    # material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
+    # material.DamageEvolution(kc=kc, uts=uts, E=E, nu=nu)
+    # material.DamageEvolution(u_pl_f)
     material.SectionAssignment()
-    material.UpdateFriction(mu)
+    # material.UpdateFrictionAndWear(mu, include_wear, kappa)
+    material.UpdateFrictionAndWear(mu)
 
-    #### ------------------------------ ####
-    #           Create Job
-    #### ------------------------------ ####
-    mdb.Job(
-        activateLoadBalancing=False,
-        atTime=None,
-        contactPrint=OFF,
-        description="",
-        echoPrint=OFF,
-        explicitPrecision=SINGLE,
-        historyPrint=OFF,
-        memory=90,
-        memoryUnits=PERCENTAGE,
-        model="Model-1",
-        modelPrint=OFF,
-        multiprocessingMode=MPI,
-        name=jobName,
-        nodalOutputPrecision=SINGLE,
-        numCpus=C.num_cpus,
-        numDomains=C.num_domains,
-        parallelizationMethodExplicit=DOMAIN,
-        queue=None,
-        resultsFormat=ODB,
-        scratch="",
-        type=ANALYSIS,
-        userSubroutine="",
-        waitHours=0,
-        waitMinutes=0,
-    )
+    run_job_and_wait(fileName, "Model-1")
 
-    #### ------------------------------ ####
-    #             Submit Job
-    #### ------------------------------ ####
-    mdb.jobs[jobName].submit(consistencyChecking=OFF)
-    mdb.jobs[jobName].waitForCompletion()
-
-    PostProcess(jobName, fileName)
+    PostProcess(jobName, fileName, arg)
 
 mdb.close()
 cleanupAbaqusJunk()
