@@ -53,7 +53,7 @@ dpo_z = 0.25
 
 # Scratch length and depth
 scratch_length = 2
-scratch_depth = -25e-3
+scratch_depth = -20e-3
 
 
 # Coarse mesh sizes. Used on edge far from area of interest
@@ -71,6 +71,10 @@ unload_time = 0.0001  # [s]
 sample_frequency_unloading = unload_time / 5.0
 sample_frequency_scratching = scratch_time / 5.0
 sample_force_frequency = scratch_time / 100.0
+
+
+# Max degredation of element stiffness
+max_degradation = 0.6
 
 
 # Naming of various Abaqus objects
