@@ -5,7 +5,9 @@ import itertools
 import numpy as np
 
 
-def MaterialParameterGenerator(n_samples=10, sampler_type="sobol", grid_points=None):
+def MaterialParameterGenerator(
+    n_samples=10, sampler_type="sobol", grid_points=None, levels=None
+):
     param_ranges = {
         "E": (70e3, 300e3),
         "A": (100, 1500),
@@ -31,19 +33,52 @@ def MaterialParameterGenerator(n_samples=10, sampler_type="sobol", grid_points=N
         sample = sampler.random(n=n_samples)
 
     # -----------------------------
-    # 2) HALTON SEQUENCE
+    # 3) HALTON SEQUENCE
     # -----------------------------
     elif sampler_type == "halton":
         sampler = qmc.Halton(d=dim, seed=42, scramble=True)
         sample = sampler.random(n=n_samples)
     # -----------------------------
-    # 2) RANDOM
+    # 4) RANDOM
     # -----------------------------
     elif sampler_type == "random":
         sample = np.random.uniform(low=0, high=1, size=(n_samples, dim))
 
     # -----------------------------
-    # 3) GRID
+    # 5) Halton discrete
+    # -----------------------------
+    elif sampler_type == "halton_discrete":
+
+        if levels is None:
+            raise ValueError(
+                "You must provide `levels={ 'E':[...], 'A':[...], ... }` for halton_discrete."
+            )
+
+        # Ensure all dimensions are provided
+        for key in param_ranges.keys():
+            if key not in levels:
+                raise ValueError(f"Missing levels for dimension '{key}'")
+
+        # Halton in [0,1]^d
+        sampler = qmc.Halton(d=dim, seed=42, scramble=True)
+        sample01 = sampler.random(n=n_samples)
+
+        # Map each coordinate to discrete bins
+        discrete_sample = np.zeros_like(sample01)
+
+        for i, key in enumerate(param_ranges.keys()):
+            allowed = np.array(levels[key])
+            n_bins = len(allowed)
+
+            idx = (sample01[:, i] * n_bins).astype(int)
+            print(idx)
+            idx = np.clip(idx, 0, n_bins - 1)
+
+            discrete_sample[:, i] = allowed[idx]
+
+        sample = discrete_sample
+    # -----------------------------
+    # 6) GRID
     # -----------------------------
     elif sampler_type == "grid":
         if grid_points is None:
@@ -118,3 +153,14 @@ if __name__ == "__main__":
     MaterialParameterGenerator(n_samples=1000, sampler_type="halton")
     MaterialParameterGenerator(n_samples=1024, sampler_type="lhs")
     MaterialParameterGenerator(n_samples=1024, sampler_type="random")
+
+    levels = {
+        "E": np.linspace(70e3, 300e3, int((300 - 70) / 5 + 1)),
+        "A": np.linspace(100, 1500, int((1500 - 100) / 50 + 1)),
+        "B": np.linspace(100, 1700, int((1700 - 100) / 50 + 1)),
+        "n": np.linspace(0.1, 0.8, int((80 - 10) / 5 + 1)),
+        "mu": np.linspace(0.0, 0.2, int((20 - 0) / 2.5 + 1)),
+    }
+    MaterialParameterGenerator(
+        n_samples=2000, sampler_type="halton_discrete", levels=levels
+    )
