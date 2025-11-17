@@ -15,7 +15,7 @@ from odbAccess import *
 from . import Constants as C
 
 
-def run_job_and_wait(jobName, modelName):
+def run_job_and_wait(jobName):
     job = mdb.Job(
         activateLoadBalancing=False,
         atTime=None,
@@ -26,7 +26,7 @@ def run_job_and_wait(jobName, modelName):
         historyPrint=OFF,
         memory=90,
         memoryUnits=PERCENTAGE,
-        model=modelName,
+        model="Model-1",
         modelPrint=OFF,
         multiprocessingMode=MPI,
         name=jobName,
