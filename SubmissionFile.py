@@ -5,10 +5,10 @@ from ProgressiveLoadScratch.PostProcessing import PostProcess
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
-from material_parameters import parameters
 from cleanup import cleanupAbaqusJunk
 from ProgressiveLoadScratch.helpers import run_job_and_wait
 
+from material_parameters.halton_discrete_material_parameter_sweep import parameters
 
 ### ---------------- ###
 # SETTINGS
@@ -37,28 +37,21 @@ ScratchModel, SubstratePart = ScratchModelSetup(
     include_wear=include_wear,
 )
 
-start_from_sim_id = 1  # Set to desired starting ID to skip completed simulations
-
+start_from_sim_id = 37  # Set to desired starting ID to skip completed simulations
+stop_at_id = 100  # Set to desired stopping ID. Runs this ID simulation
 
 for arg in parameters:
     run_id = arg["id"]
     if int(run_id) < start_from_sim_id:
         continue
+
     rho = float(arg["rho"])
     E = float(arg["E"])
     nu = float(arg["nu"])
     A = float(arg["A"])
     B = float(arg["B"])
     n = float(arg["n"])
-    # D1 = float(arg["D1"])
-    # D2 = float(arg["D2"])
-    # D3 = float(arg["D3"])
-    # uts = float(arg["uts"])
-    # kc = float(arg["kc"])
-    # u_pl_f = float(arg["u_pl_f"])
     mu = float(arg["mu"])
-    # kappa = float(arg["kappa"])
-    # H = float(arg["Hardness"])
 
     fileName = "sim" + str(run_id)
 
@@ -71,16 +64,15 @@ for arg in parameters:
     )
 
     material.JohnsonCookHardening(A=A, B=B, n=n)
-    # material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
-    # material.DamageEvolution(kc=kc, uts=uts, E=E, nu=nu)
-    # material.DamageEvolution(u_pl_f)
     material.SectionAssignment()
-    # material.UpdateFrictionAndWear(mu, include_wear, kappa)
     material.UpdateFrictionAndWear(mu)
 
-    run_job_and_wait(fileName, "Model-1")
+    run_job_and_wait(jobName)
 
     PostProcess(jobName, fileName, arg)
+
+    if int(run_id) == stop_at_id:
+        break
 
 mdb.close()
 cleanupAbaqusJunk()
