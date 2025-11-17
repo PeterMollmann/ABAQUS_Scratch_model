@@ -13,6 +13,7 @@ from visualization import *
 from connectorBehavior import *
 from odbAccess import *
 import numpy as np
+from . import Constants as C
 
 
 class SubstrateMaterialAssignment:
@@ -22,7 +23,6 @@ class SubstrateMaterialAssignment:
         self,
         ScratchModel,
         SubstratePart,
-        SubstrateSet,
         rho,
         youngs_modulus,
         poisson_ratio,
@@ -33,7 +33,6 @@ class SubstrateMaterialAssignment:
         Args:
             ScratchModel: The Abaqus model object.
             SubstratePart: The Abaqus part object of the substrate.
-            SubstrateSet: The name of the set containing all the substrate cells.
             rho (float): Density of the substrate material.
             youngs_modulus (float): Young's modulus of the substrate material.
             poisson_ratio (float): Poisson's ratio of the substrate material.
@@ -41,7 +40,6 @@ class SubstrateMaterialAssignment:
 
         self.ScratchModel = ScratchModel
         self.SubstratePart = SubstratePart
-        self.SubstrateSet = SubstrateSet
         self.youngs_modulus = youngs_modulus
 
         self.MaterialName = "SubstrateMaterial"
@@ -118,10 +116,10 @@ class SubstrateMaterialAssignment:
 
         """
         self.mat.JohnsonCookDamageInitiation(table=((d1, d2, d3, d4, d5, Tm, Tt, Sr),))
-        # eps_f = d1 + d2*exp(-d3*)
         return self.mat
 
-    def DamageEvolution(self, kc, E, nu):
+    def DamageEvolution(self, kc, uts, E, nu):
+        # def DamageEvolution(self, u_pl_f):
         """
         Assigns damage evolution to the model.
 
@@ -130,10 +128,14 @@ class SubstrateMaterialAssignment:
             E (float): Young's modulus.
             nu (float): Poisson's ratio
         """
-        E_star = E / (1 - nu**2)
-        fractureEnergy = kc**2 / E_star
+        E_star = E / (1 - nu**2)  # [MPa]
+        fractureEnergy = kc**2 / E_star  # [N/mm] = [MJ/m2]
+        # u_pl_f = 2 * fractureEnergy / uts
+        # self.mat.johnsonCookDamageInitiation.DamageEvolution(
+        #     table=((u_pl_f,),), type=DISPLACEMENT, softening=LINEAR
+        # )
         self.mat.johnsonCookDamageInitiation.DamageEvolution(
-            table=((fractureEnergy,),), type=ENERGY
+            table=((fractureEnergy,),), type=ENERGY, softening=LINEAR
         )
         return self.mat
 
@@ -154,18 +156,20 @@ class SubstrateMaterialAssignment:
             offset=0.0,
             offsetField="",
             offsetType=MIDDLE_SURFACE,
-            region=self.SubstratePart.sets[self.SubstrateSet],
+            region=self.SubstratePart.sets[C.substrate_set_name],
             sectionName="SubstrateSection",
             thicknessAssignment=FROM_SECTION,
         )
         return self.ScratchModel, self.SubstratePart
 
-    def UpdateFriction(self, mu):
+    def UpdateFrictionAndWear(self, mu, include_wear=False, kappa=None):
+        # def UpdateFrictionAndWear(self, mu, kappa):
         """
         Updates the interfacial coefficient of friction in the tangential behaviour of the contact properties.
 
         Args:
             mu (float): Interfacial coefficient of friction.
+            kappa (float): Wear coefficient.
 
         Returns:
             ScratchModel: The Abaqus model object with updated friction coefficient.
@@ -174,4 +178,8 @@ class SubstrateMaterialAssignment:
         self.ScratchModel.interactionProperties[
             "IntProp-1"
         ].tangentialBehavior.setValues(table=((mu,),))
+        if include_wear:
+            self.ScratchModel.interactionProperties["IntProp-2"].setValues(
+                property=((kappa,),)  # , referenceStress=Hardness
+            )
         return self.ScratchModel

@@ -1,27 +1,23 @@
 from abaqus import *
 from abaqusConstants import *
-from ProgressiveLoadScratch.PostProcessing import *
+import ProgressiveLoadScratch.Constants as C
+from ProgressiveLoadScratch.PostProcessing import PostProcess
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
-from material_parameters import parameters
+from cleanup import cleanupAbaqusJunk
+from ProgressiveLoadScratch.helpers import run_job_and_wait
 
-# import pandas as pd
+from material_parameters.halton_discrete_material_parameter_sweep import parameters
 
 ### ---------------- ###
 # SETTINGS
 ### ---------------- ###
-jobName = "ProgressiveLoadScratchTest"
-indenter = "RockwellIndenter"
-materialModel = "JohnsonCook"
-damageModel = False
-
-depth = -75e-3
+jobName = "MaterialSweep"
 
 
-# Parallelisation
-num_cpus = 6
-num_domains = num_cpus
+meshSize = [0.040, 0.030, 0.020, 0.010, 0.008, 0.006, 0.004]
+meshSizeIdx = 3
 
 
 # Change abaqus working directory
@@ -30,27 +26,31 @@ if not os.path.exists(rundir):
     os.makedirs(rundir)
 os.chdir(rundir)
 
-
+include_wear = False
 # Setup scratch model. Only needs to be called once
-ScratchModel, SubstratePart, SubstrateSet = ScratchModelSetup(
-    depth=depth,
-    # IndenterToUse=indenter
+ScratchModel, SubstratePart = ScratchModelSetup(
+    SubstrateSizeY=meshSize[meshSizeIdx],
+    SubstrateSizeX=meshSize[meshSizeIdx],
+    SubstrateSizeZ=meshSize[meshSizeIdx],
+    mass_scale=10e4,
+    use_ALE=False,
+    include_wear=include_wear,
 )
 
+start_from_sim_id = 37  # Set to desired starting ID to skip completed simulations
+stop_at_id = 100  # Set to desired stopping ID. Runs this ID simulation
 
 for arg in parameters:
     run_id = arg["id"]
+    if int(run_id) < start_from_sim_id:
+        continue
+
     rho = float(arg["rho"])
     E = float(arg["E"])
     nu = float(arg["nu"])
     A = float(arg["A"])
     B = float(arg["B"])
     n = float(arg["n"])
-    D1 = float(arg["D1"])
-    D2 = float(arg["D2"])
-    D3 = float(arg["D3"])
-    uts = float(arg["uts"])
-    kc = float(arg["kc"])
     mu = float(arg["mu"])
 
     fileName = "sim" + str(run_id)
@@ -58,54 +58,21 @@ for arg in parameters:
     material = SubstrateMaterialAssignment(
         ScratchModel,
         SubstratePart,
-        SubstrateSet,
         rho=rho,
         youngs_modulus=E,
         poisson_ratio=nu,
     )
 
     material.JohnsonCookHardening(A=A, B=B, n=n)
-    material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
-    material.DamageEvolution(kc=kc, E=E, nu=nu)
     material.SectionAssignment()
-    material.UpdateFriction(mu)
+    material.UpdateFrictionAndWear(mu)
 
-    #### ------------------------------ ####
-    #           Create Job
-    #### ------------------------------ ####
-    mdb.Job(
-        activateLoadBalancing=False,
-        atTime=None,
-        contactPrint=OFF,
-        description="",
-        echoPrint=OFF,
-        explicitPrecision=SINGLE,
-        historyPrint=OFF,
-        memory=90,
-        memoryUnits=PERCENTAGE,
-        model="Model-1",
-        modelPrint=OFF,
-        multiprocessingMode=MPI,
-        name=jobName,
-        nodalOutputPrecision=SINGLE,
-        numCpus=num_cpus,
-        numDomains=num_domains,
-        parallelizationMethodExplicit=DOMAIN,
-        queue=None,
-        resultsFormat=ODB,
-        scratch="",
-        type=ANALYSIS,
-        userSubroutine="",
-        waitHours=0,
-        waitMinutes=0,
-    )
+    run_job_and_wait(jobName)
 
-    #### ------------------------------ ####
-    #             Submit Job
-    #### ------------------------------ ####
-    mdb.jobs[jobName].submit(consistencyChecking=OFF)
-    mdb.jobs[jobName].waitForCompletion()
+    PostProcess(jobName, fileName, arg)
 
-    PostProcess(jobName, fileName)
+    if int(run_id) == stop_at_id:
+        break
 
 mdb.close()
+cleanupAbaqusJunk()

@@ -12,15 +12,21 @@ from sketch import *
 from visualization import *
 from connectorBehavior import *
 from odbAccess import *
+from .RockwellIndenter import RockwellIndenter
+from .SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
+from . import Constants as C
 
-# from PyramidIndenter import PyramidIndenter
-from RockwellIndenter import RockwellIndenter
-from SubstrateGeneration import SubstrateGeneration, SubstrateMeshing
+# from SubstratePartitionPattern import FullPartitionOfFace
 
 
 def ScratchModelSetup(
-    depth=-50e-3,
-    # IndenterToUse="RockwellIndenter",  # Options are "RockwellIndenter" or "PyramidIndenter"
+    SubstrateSizeY=0.020,  # Very coarse mesh for fast simulations
+    SubstrateSizeX=0.020,
+    SubstrateSizeZ=0.020,
+    target_time_increment=0.0,  # if zero, applies mass scaling factor only
+    mass_scale=1e4,
+    use_ALE=True,
+    include_wear=True,
 ):
     """
     Sets up the scratch model with substrate and indenter parts, assembly,
@@ -33,13 +39,15 @@ def ScratchModelSetup(
     Remember to use consistent units as abaqus does not check for unit consistency! This document uses SI(mm) units.
 
     Args:
-        depth (float): The depth of the scratch indentation in mm. Default is -50e-3 (i.e., -0.05 micrometer).
-        # IndenterToUse (str): Type of indenter to use. Options are "RockwellIndenter" or "PyramidIndenter". Default is "RockwellIndenter".
+        SubstrateSizeX: The mesh size of the refined area in the x-direction
+        SubstrateSizeY: The mesh size of the refined area in the y-direction
+        SubstrateSizeZ: The mesh size of the refined area in the z-direction
+        target_time_increment: Target stable time increment for variable mass scaling. If 0.0, variable mass scaling is not used.
+        mass_scale: Fixed mass scaling factor. Is not used if target_time_increment is not 0.0.
 
     Returns:
         ScratchModel: The Abaqus model object with the complete scratch test setup.
         SubstratePart: The Abaqus part object of the substrate.
-        SubstrateSet: The name of the set containing all the substrate cells.
     """
 
     # Set the replay options
@@ -49,117 +57,53 @@ def ScratchModelSetup(
 
     ScratchModel = mdb.models["Model-1"]
 
-    # Parameters for sketching
-    sheet_size = 10
-
-    # Geometry coordinates for specimen
-    xs1 = 0.0  # x coordinate of first point
-    ys1 = 0.0  # y coordinate of first point
-    xs2 = 0.96  # x coordinate of second point
-    ys2 = 0.8  # y coordinate of second point
-    zs1 = 0.0  # z coordinate of first point
-    zs2 = 3.0  # z coordinate of second point - extrude depth
-
-    # Meshing parameters
-    IndenterMinSize = 0.0025
-    IndenterMaxSize = 0.025
-
-    SubstrateSizeY = 0.040
-    SubstrateSizeX = 0.040
-    SubstrateSizeZ = 0.040
-
-    CoarseMeshSize0 = 0.05
-    CoarseMeshSize1 = 0.15
-    CoarseMeshSize2 = 0.3
-
-    # Analysis time
-    indentation_time = 0.0001  # [s]
-    scratch_time = 0.01  # [s] 0.005
-
-    # Scratch parameters
-    scratch_depth = depth  # [mm]
-    scratch_length = 2  # [mm]
-
-    # Datum plane offsets
-    dpo_x = xs2 / 2.0
-    dpo_z = (zs2 - scratch_length) / 2.0
-
-    sample_frequency_indentation = indentation_time / 5.0
-    sample_frequency_scratching = scratch_time / 5.0
-    sample_force_frequency_scratching = scratch_time / 100.0
-
-    # Mass scaling factor - adjust for computational efficiency and accuracy.
-    mass_scale = 1e4
-
     # Create and mesh substate
-    ScratchModel, SubstratePart, _, SubstrateSet = SubstrateGeneration(
+    SubstratePart = SubstrateGeneration(
         ScratchModel,
-        xs1,
-        ys1,
-        xs2,
-        ys2,
-        zs1,
-        zs2,
-        dpo_x,
-        dpo_z,
-        sheet_size,
     )
 
-    SubstratePart = SubstrateMeshing(
+    SubstrateMeshing(
         SubstratePart,
-        xs1,
-        ys1,
-        zs1,
-        xs2,
-        ys2,
-        zs2,
-        dpo_x,
-        dpo_z,
-        CoarseMeshSize0,
-        CoarseMeshSize1,
-        CoarseMeshSize2,
         SubstrateSizeX,
         SubstrateSizeY,
         SubstrateSizeZ,
     )
 
     # Create and mesh indenter
-    # if IndenterToUse == "RockwellIndenter":
-    ScratchModel, IndenterPart, indenter_set, IndenterName, IndenterCoords = (
-        RockwellIndenter(
-            ScratchModel,
-            IndenterMinSize,
-            IndenterMaxSize,
-            R=0.2,
-            theta=60.0,
-            sheet_size=sheet_size,
-        )
-    )
+    IndenterPart = RockwellIndenter(ScratchModel, rigid=True)
 
     #### ------------------------------ ####
     #            Assembly
     #### ------------------------------ ####
-    indenterInstanceName = IndenterName + "Inst"
-    specimenInstanceName = "SubstrateInst"
+    # indenterInstanceName = IndenterName + "Inst"
+    # C.substrate_instance_name = "SubstrateInst"
     ScratchModelAssembly = ScratchModel.rootAssembly
     ScratchModelAssembly.DatumCsysByDefault(CARTESIAN)
     ScratchModelAssembly.Instance(
-        dependent=ON, name=indenterInstanceName, part=IndenterPart
+        dependent=ON, name=C.indenter_instance_name, part=IndenterPart
     )
-    IndenterInstance = ScratchModelAssembly.instances[indenterInstanceName]
+    IndenterInstance = ScratchModelAssembly.instances[C.indenter_instance_name]
     ScratchModelAssembly.Instance(
-        dependent=ON, name=specimenInstanceName, part=SubstratePart
+        dependent=ON, name=C.substrate_instance_name, part=SubstratePart
     )
-    SpecimenInstance = ScratchModelAssembly.instances[specimenInstanceName]
+    SubstrateInstance = ScratchModelAssembly.instances[C.substrate_instance_name]
 
     eps = 0.00
     ScratchModelAssembly.translate(
-        instanceList=(indenterInstanceName,), vector=(0.0, ys2 + eps, 0.0)
+        instanceList=(C.indenter_instance_name,), vector=(0.0, C.ys2 + eps, 0.0)
     )
 
     ScratchModelAssembly.translate(
-        instanceList=(indenterInstanceName,),
-        vector=(0.0, 0.0, dpo_z),
+        instanceList=(C.indenter_instance_name,),
+        vector=(0.0, 0.0, C.dpo_z),
+    )
+
+    ScratchModelAssembly.Surface(
+        name="Surf-5",
+        side1Faces=IndenterInstance.faces.findAt(
+            ((0.070404, 0.51436 + eps, 0.225893),),
+            ((0.385319, 0.692546 + eps, 0.28699),),
+        ),
     )
 
     #### ------------------------------ ####
@@ -173,12 +117,12 @@ def ScratchModelSetup(
             (
                 SEMI_AUTOMATIC,
                 MODEL,
-                AT_BEGINNING,
-                mass_scale,
-                0.0,
-                None,
+                AT_BEGINNING if target_time_increment == 0.0 else THROUGHOUT_STEP,
+                mass_scale if target_time_increment == 0.0 else 0.0,
+                target_time_increment,
+                BELOW_MIN if target_time_increment != 0.0 else None,
                 0,
-                0,
+                10,  # Update mass scaling every # equally spaced intervals
                 0.0,
                 0.0,
                 0,
@@ -187,20 +131,20 @@ def ScratchModelSetup(
         ),
         name=StepName1,
         previous="Initial",
-        timePeriod=scratch_time,
+        timePeriod=C.scratch_time,
         nlgeom=ON,
     )
 
     # Fixed constraint on the bottom two faces
     fixedBCSet = "FIXEDBCSET"
     ScratchModelAssembly.Set(
-        faces=SpecimenInstance.faces.findAt(
-            ((xs1 + dpo_x / 2.0, ys1, zs1 + dpo_z / 2.0),),
-            ((xs1 + dpo_x / 2.0, ys1, (zs2 + zs1) / 2.0),),
-            ((xs1 + dpo_x / 2.0, ys1, zs2 - dpo_z / 2.0),),
-            ((xs2 - dpo_x / 2.0, ys1, zs2 - dpo_z / 2.0),),
-            ((xs2 - dpo_x / 2.0, ys1, (zs2 + zs1) / 2.0),),
-            ((xs2 - dpo_x / 2.0, ys1, zs1 + dpo_z / 2.0),),
+        faces=SubstrateInstance.faces.findAt(
+            ((C.xs1 + C.dpo_x / 2.0, C.ys1, C.zs1 + C.dpo_z / 2.0),),
+            ((C.xs1 + C.dpo_x / 2.0, C.ys1, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs1 + C.dpo_x / 2.0, C.ys1, C.zs2 - C.dpo_z / 2.0),),
+            ((C.xs2 - C.dpo_x / 2.0, C.ys1, C.zs2 - C.dpo_z / 2.0),),
+            ((C.xs2 - C.dpo_x / 2.0, C.ys1, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs2 - C.dpo_x / 2.0, C.ys1, C.zs1 + C.dpo_z / 2.0),),
         ),
         name=fixedBCSet,
     )
@@ -214,10 +158,11 @@ def ScratchModelSetup(
     # Symmetry constraint
     XsymmetryBCSet = "XsymmetryBCSet"
     ScratchModelAssembly.Set(
-        faces=SpecimenInstance.faces.findAt(
-            ((xs1, (ys1 + ys2) / 2.0, zs1 + dpo_z / 2.0),),
-            ((xs1, (ys1 + ys2) / 2.0, (zs2 + zs1) / 2.0),),
-            ((xs1, (ys1 + ys2) / 2.0, zs2 - dpo_z / 2.0),),
+        faces=SubstrateInstance.faces.findAt(
+            ((C.xs1, (C.ys1 + C.ys2) / 2.0, C.zs1 + C.dpo_z / 2.0),),
+            ((C.xs1, C.ys1 + C.dpo_y / 2.0, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs1, C.ys2 - C.dpo_y / 2.0, (C.zs2 + C.zs1) / 2.0),),
+            ((C.xs1, (C.ys1 + C.ys2) / 2.0, C.zs2 - C.dpo_z / 2.0),),
         ),
         name=XsymmetryBCSet,
     )
@@ -228,29 +173,11 @@ def ScratchModelSetup(
         region=ScratchModelAssembly.sets[XsymmetryBCSet],
     )
 
-    # Z axis symmetry constraint
-    ZsymmetryBCSet = "ZsymmetryBCSet"
-    ScratchModelAssembly.Set(
-        faces=SpecimenInstance.faces.findAt(
-            ((xs1 + dpo_x / 2.0, (ys2 + ys1) / 2.0, zs1),),
-            ((xs2 - dpo_x / 2.0, (ys2 + ys1) / 2.0, zs1),),
-            ((xs1 + dpo_x / 2.0, (ys2 + ys1) / 2.0, zs2),),
-            ((xs2 - dpo_x / 2.0, (ys2 + ys1) / 2.0, zs2),),
-        ),
-        name=ZsymmetryBCSet,
-    )
-    ScratchModel.ZsymmBC(
-        createStepName=StepName1,
-        localCsys=None,
-        name="y_axis_symmetry",
-        region=ScratchModelAssembly.sets[ZsymmetryBCSet],
-    )
-
     ScratchModel.TabularAmplitude(
         data=(
             (0.0, 0.0),
-            (scratch_time, 1.0),
-            (indentation_time + scratch_time, 0.0),
+            (C.scratch_time, 1.0),
+            (C.unload_time + C.scratch_time, 0.0),
         ),
         name="Amp-1",
         smooth=SOLVER_DEFAULT,
@@ -265,11 +192,10 @@ def ScratchModelSetup(
         fixed=OFF,
         localCsys=None,
         name="IndenterScratching",
-        region=IndenterInstance.sets[indenter_set],
+        region=IndenterInstance.sets[C.indenter_set_name],
         u1=UNSET,
-        u2=scratch_depth,
-        # u2=UNSET,
-        u3=scratch_length,
+        u2=C.scratch_depth,
+        u3=C.scratch_length,
         ur1=UNSET,
         ur2=UNSET,
         ur3=UNSET,
@@ -283,7 +209,7 @@ def ScratchModelSetup(
         fixed=OFF,
         localCsys=None,
         name="IndenterConstraint",
-        region=IndenterInstance.sets[indenter_set],
+        region=IndenterInstance.sets[C.indenter_set_name],
         u1=SET,
         u2=UNSET,
         u3=UNSET,
@@ -300,56 +226,50 @@ def ScratchModelSetup(
         createStepName=StepName1,
         name="ReactionForces",
         rebar=EXCLUDE,
-        region=IndenterInstance.sets[indenter_set],
+        region=IndenterInstance.sets[C.indenter_set_name],
         sectionPoints=DEFAULT,
-        timeInterval=sample_force_frequency_scratching,
+        timeInterval=C.sample_force_frequency,
         variables=("RF1", "RF2", "RF3"),
     )
+
     ScratchModel.HistoryOutputRequest(
         createStepName=StepName1,
         name="Energy",
-        region=ScratchModelAssembly.allInstances["SubstrateInst"].sets["SubstrateSet"],
-        timeInterval=sample_force_frequency_scratching,
+        region=SubstrateInstance.sets["SubstrateSet"],
+        timeInterval=C.sample_force_frequency,
         variables=("ALLKE", "ALLIE"),
     )
 
     ScratchModel.FieldOutputRequest(
         createStepName=StepName1,
         name="FieldOutput",
-        region=ScratchModelAssembly.allInstances["SubstrateInst"].sets["SubstrateSet"],
-        timeInterval=sample_frequency_scratching,
+        region=SubstrateInstance.sets["SubstrateSet"],
+        timeInterval=C.sample_frequency_scratching,
         variables=(
             "MISES",
             "TRIAX",
-            # "A",
+            "A",
             "CSTRESS",
             "EVF",
             "LE",
             "PE",
             "PEEQ",
-            # "PEEQVAVG",
-            # "PEVAVG",
             "RF",
             "S",
             "SVAVG",
             "U",
-            # "V",
-            # "DUCTCRT",
-            # "JCCRT",
-            "DAMAGEC",
-            "DAMAGET",
-            "DMICRT",
+            "COORD",
             "STATUS",
             "SDEG",
         ),
     )
-
-    # ScratchModel.FieldOutputRequest(
-    #     createStepName=StepName1,
-    #     name="ContactForce",
-    #     timeInterval=sample_frequency_scratching,
-    #     variables=("CFORCE",),
-    # )
+    ScratchModel.FieldOutputRequest(
+        createStepName=StepName1,
+        name="ContactForce",
+        region=SubstrateInstance.sets["SubstrateSet"],
+        timeInterval=C.sample_frequency_scratching,
+        variables=("CFORCE",),
+    )
 
     #### ------------------------------ ####
     #           Unloading Step
@@ -359,7 +279,7 @@ def ScratchModelSetup(
         improvedDtMethod=ON,
         name=StepName2,
         previous=StepName1,
-        timePeriod=indentation_time,
+        timePeriod=C.unload_time,
     )
 
     ScratchModel.boundaryConditions["IndenterConstraint"].setValuesInStep(
@@ -367,33 +287,39 @@ def ScratchModelSetup(
     )
 
     ScratchModel.fieldOutputRequests["FieldOutput"].setValuesInStep(
-        stepName=StepName2, timeInterval=sample_frequency_indentation
+        stepName=StepName2, timeInterval=C.sample_frequency_unloading
     )
-
     # ScratchModel.fieldOutputRequests["ContactForce"].setValuesInStep(
-    #     stepName=StepName2, timeInterval=sample_frequency_indentation
+    #     stepName=StepName2, timeInterval=C.sample_frequency_unloading
     # )
 
-    ScratchModel.historyOutputRequests["ReactionForces"].setValuesInStep(
-        stepName=StepName2, timeInterval=sample_frequency_indentation
-    )
+    # ScratchModel.historyOutputRequests["ReactionForces"].setValuesInStep(
+    #     stepName=StepName2, timeInterval=C.sample_frequency_unloading
+    # )
 
-    ScratchModel.historyOutputRequests["Energy"].setValuesInStep(
-        stepName=StepName2, timeInterval=sample_frequency_indentation
-    )
+    # ScratchModel.historyOutputRequests["Energy"].setValuesInStep(
+    #     stepName=StepName2, timeInterval=C.sample_frequency_unloading
+    # )
+
+    ScratchModel.fieldOutputRequests["ContactForce"].deactivate(StepName2)
+    ScratchModel.historyOutputRequests["Energy"].deactivate(StepName2)
+    ScratchModel.historyOutputRequests["ReactionForces"].deactivate(StepName2)
 
     #### ------------------------------ ####
     #          Contact modelling
     #### ------------------------------ ####
+    # Initiate tangential behaviour with zero friction. Friction is updated in another file.
     ScratchModel.ContactProperty("IntProp-1")
     ScratchModel.interactionProperties["IntProp-1"].TangentialBehavior(
         formulation=PENALTY, table=((0.0,),), fraction=0.005
     )
+    # ScratchModel.interactionProperties["IntProp-1"].TangentialBehavior(
+    #     formulation=FRICTIONLESS,
+    # )
     mdb.models["Model-1"].interactionProperties["IntProp-1"].NormalBehavior(
         allowSeparation=ON,
         constraintEnforcementMethod=DEFAULT,
         pressureOverclosure=HARD,
-        # overclosureFactor=0.5,
     )
     # ScratchModel.interactionProperties["IntProp-1"].NormalBehavior(
     #     constraintEnforcementMethod=DEFAULT,
@@ -404,30 +330,19 @@ def ScratchModelSetup(
     #     pressureOverclosure=SCALE_FACTOR,
     # )
 
-    masterSurfaceName = "m_Surf-1"
-    xl2, yl2 = IndenterCoords
     ScratchModelAssembly.Surface(
-        name=masterSurfaceName,
+        name=C.master_surface_name,
         side1Faces=IndenterInstance.faces.findAt(
-            ((xs1, ys2 + eps, zs1 + dpo_z),),
-            ((xs1 + xl2, ys2 + yl2 + eps, zs1 + dpo_z),),
+            ((C.xs1, C.ys2 + eps, C.zs1 + C.dpo_z),),
+            ((C.xs1 + C.xl2, C.ys2 + C.yl2 + eps, C.zs1 + C.dpo_z),),
         ),
     )
 
-    # Get all relevant contact elements of the substrate (+- 0.1 for ensureing all elements are selected)
-    elemsInBox = SpecimenInstance.elements.getByBoundingBox(
-        xs1 - 0.1, ys1 - 0.1, zs1 - 0.1, xs1 + dpo_x + 0.1, ys2 + 0.1, zs2 + 0.1
-    )
-
-    slaveSurfaceName = "s_Surf-1"
     ScratchModelAssembly.Surface(
-        name=slaveSurfaceName,
-        face1Elements=elemsInBox,
-        face2Elements=elemsInBox,
-        face3Elements=elemsInBox,
-        face4Elements=elemsInBox,
-        face5Elements=elemsInBox,
-        face6Elements=elemsInBox,
+        name=C.slave_surface_name,
+        side1Faces=SubstrateInstance.faces.findAt(
+            ((C.xs1 + C.dpo_x / 2.0, C.ys2, (C.zs2 + C.zs1) / 2.0),),
+        ),
     )
 
     # Use abaqus general contact
@@ -435,20 +350,91 @@ def ScratchModelSetup(
     ScratchModel.interactions["Int-1"].includedPairs.setValuesInStep(
         addPairs=(
             (
-                ScratchModelAssembly.surfaces[masterSurfaceName],
-                ScratchModelAssembly.surfaces[slaveSurfaceName],
+                ScratchModelAssembly.surfaces[C.master_surface_name],
+                ScratchModelAssembly.surfaces[C.slave_surface_name],
             ),
         ),
         stepName="Initial",
         useAllstar=OFF,
     )
+
     ScratchModel.interactions["Int-1"].contactPropertyAssignments.appendInStep(
-        assignments=((GLOBAL, SELF, "IntProp-1"),), stepName="Initial"
+        assignments=((GLOBAL, SELF, "IntProp-1"),),
+        stepName="Initial",
     )
-
+    ScratchModel.interactions["Int-1"].smoothingAssignments.appendInStep(
+        assignments=(
+            (ScratchModelAssembly.surfaces[C.slave_surface_name], REVOLUTION),
+        ),
+        stepName=StepName1,
+    )
     ScratchModelAssembly.Set(
-        name="contactRegionNodes",
-        nodes=ScratchModelAssembly.allSurfaces[slaveSurfaceName].nodes,
+        name=C.contact_region_nodes_name,
+        nodes=ScratchModelAssembly.allSurfaces[C.slave_surface_name].nodes,
     )
 
-    return (ScratchModel, SubstratePart, SubstrateSet)
+    if include_wear:
+        use_ALE = True  # Wear should be used with ALE
+        ScratchModel.WearProperty(
+            name="IntProp-2",
+            dependencies=0,
+            fricCoefDependency=ON,
+            unitlessWearCoefDependency=OFF,
+            surfaceWearDistanceDependency=OFF,
+            property=((0.1,),),  # Initial value, is updated later.
+            # referenceStress=150.0,
+        )
+
+        ScratchModel.interactions["Int-1"].wearSurfacePropertyAssignments.appendInStep(
+            assignments=(
+                (
+                    ScratchModelAssembly.surfaces[C.slave_surface_name],
+                    "IntProp-2",
+                ),
+            ),
+            stepName="Initial",
+        )
+        ScratchModel.interactions[
+            "Int-1"
+        ].wearSurfacePropertyAssignments.changeValuesInStep(
+            index=0, stepName="Initial", value="IntProp-2"
+        )
+
+    if use_ALE:
+
+        ScratchModel.AdaptiveMeshControl(
+            name="Ada-1",
+            smoothingPriority=GRADED,
+            smoothingAlgorithm=GEOMETRY_ENHANCED,
+            curvatureRefinement=1,
+            volumetricSmoothingWeight=1,
+            laplacianSmoothingWeight=0,
+            equipotentialSmoothingWeight=0,
+        )
+
+        ScratchModelAssembly.Set(
+            name="ALE_Domain",
+            faces=SubstrateInstance.faces.findAt(
+                ((C.xs1 + C.dpo_x / 2.0, C.ys2, (C.zs1 + C.zs2) / 2.0),)
+            ),
+            # cells=SubstrateInstance.cells.findAt(
+            #     ((C.xs1, C.ys2, (C.zs1 + C.zs2) / 2.0),),
+            #     # ((C.xs1, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+            # ),
+        )
+        ScratchModel.steps[StepName1].AdaptiveMeshDomain(
+            controls="Ada-1",
+            meshSweeps=5,
+            frequency=20,
+            # initialMeshSweeps=5,
+            region=ScratchModelAssembly.sets["ALE_Domain"],
+        )
+        ScratchModel.steps[StepName2].AdaptiveMeshDomain(
+            controls="Ada-1",
+            meshSweeps=5,
+            frequency=20,
+            initialMeshSweeps=5,
+            region=ScratchModelAssembly.sets["ALE_Domain"],
+        )
+
+    return ScratchModel, SubstratePart
