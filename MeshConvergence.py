@@ -4,6 +4,7 @@ from ProgressiveLoadScratch.PostProcessing import *
 from ProgressiveLoadScratch.ProgressiveLoadScratchTest import ScratchModelSetup
 from ProgressiveLoadScratch.SubstrateMaterial import SubstrateMaterialAssignment
 import os
+from ProgressiveLoadScratch.helpers import run_job_and_wait
 
 # from material_parameters import parameters
 import numpy as np
@@ -25,8 +26,13 @@ meshSizes = np.array(
         # [0.020, 0.020, 0.020],
         # [0.015, 0.015, 0.015],
         # [0.010, 0.010, 0.010],
-        [0.008, 0.008, 0.008],
-        # [0.005, 0.005, 0.005],
+        # [0.008, 0.010, 0.010],
+        # [0.010, 0.010, 0.008],
+        # [0.008, 0.010, 0.008],
+        # [0.008, 0.008, 0.008],
+        # [0.006, 0.006, 0.006],
+        [0.005, 0.005, 0.005],
+        [0.004, 0.004, 0.004],
     ]
 )
 
@@ -73,20 +79,20 @@ material_params = {
     "kappa": kappa,
 }
 
-include_wear = True
+include_wear = False
 
 for id, meshSize in enumerate(meshSizes):
 
     fileName = (
-        "mesh" + str(meshSize[0]) + "_" + str(meshSize[1]) + "_" + str(meshSize[2])
+        "new_mesh" + str(meshSize[0]) + "_" + str(meshSize[1]) + "_" + str(meshSize[2])
     )
 
     ScratchModel, SubstratePart = ScratchModelSetup(
-        SubstrateSizeY=meshSize[0],
         SubstrateSizeX=meshSize[1],
+        SubstrateSizeY=meshSize[0],
         SubstrateSizeZ=meshSize[2],
         mass_scale=10e4,
-        use_ALE=False,
+        use_ALE=True,
         include_wear=include_wear,
     )
 
@@ -102,113 +108,9 @@ for id, meshSize in enumerate(meshSizes):
     material.JohnsonCookDamage(d1=D1, d2=D2, d3=D3)
     material.DamageEvolution(kc=kc, uts=uts, E=E, nu=nu)
     material.SectionAssignment()
-    material.UpdateFrictionAndWear(mu, kappa)
+    material.UpdateFrictionAndWear(mu)
 
-    #### ------------------------------ ####
-    #           Create Job
-    #### ------------------------------ ####
-    job = mdb.Job(
-        activateLoadBalancing=False,
-        atTime=None,
-        contactPrint=OFF,
-        description="",
-        echoPrint=OFF,
-        explicitPrecision=SINGLE,
-        historyPrint=OFF,
-        memory=90,
-        memoryUnits=PERCENTAGE,
-        model="Model-1",
-        modelPrint=OFF,
-        multiprocessingMode=MPI,
-        name=jobName,
-        nodalOutputPrecision=SINGLE,
-        numCpus=num_cpus,
-        numDomains=num_domains,
-        parallelizationMethodExplicit=DOMAIN,
-        queue=None,
-        resultsFormat=ODB,
-        scratch="",
-        type=ANALYSIS,
-        userSubroutine="",
-        waitHours=0,
-        waitMinutes=0,
-    )
-
-    job.writeInput(consistencyChecking=OFF)
-
-    if include_wear:
-        # Go into .inp file and locate:
-        #
-        # *Surface Property, name=IntProp-2
-        # *WEAR SURFACE PROPERTIES, FRIC COEF DEPENDENT=YES, UNITLESS WEAR COEF=NO
-        # 0.0001, , , , **
-        #
-        # There is a bug here, it should be:
-        #
-        # 0.0001, , , ,
-        # **
-        #
-        # This is fixed here.
-        trigger_found = False
-        inpFile = jobName + ".inp"
-        with open(inpFile, "r") as file:
-            lines = file.readlines()
-        for i, line in enumerate(lines):
-            if "*WEAR SURFACE PROPERTIES" in line:
-                trigger_found = True
-                # next line is the one we want to change
-                if i + 1 < len(lines):
-                    old_line = lines[i + 1]
-
-                    new_line = f" {kappa}, , , , \n**\n"
-
-                    lines[i + 1] = new_line
-
-                break
-
-        if not trigger_found:
-            raise ValueError(
-                f"Could not find the trigger line in the inp file. Old line: {old_line}"
-            )
-
-        # Write the modified content back
-        # inpFileBackup = jobName + "Backup" + ".inp"
-        with open(inpFile, "w") as f:
-            f.writelines(lines)
-
-    job = mdb.JobFromInputFile(
-        name=jobName,
-        inputFileName=jobName + ".inp",
-        activateLoadBalancing=False,
-        atTime=None,
-        # contactPrint=OFF,
-        # description="",
-        # echoPrint=OFF,
-        explicitPrecision=SINGLE,
-        # historyPrint=OFF,
-        memory=90,
-        memoryUnits=PERCENTAGE,
-        # model="Model-1",
-        # modelPrint=OFF,
-        multiprocessingMode=MPI,
-        nodalOutputPrecision=SINGLE,
-        numCpus=C.num_cpus,
-        numDomains=C.num_domains,
-        parallelizationMethodExplicit=DOMAIN,
-        queue=None,
-        resultsFormat=ODB,
-        scratch="",
-        type=ANALYSIS,
-        userSubroutine="",
-        waitHours=0,
-        waitMinutes=0,
-    )
-    #### ------------------------------ ####
-    #             Submit Job
-    #### ------------------------------ ####
-    job.submit(consistencyChecking=OFF)
-    job.waitForCompletion()
-
+    run_job_and_wait(jobName)
     PostProcess(jobName, fileName, material_params)
 
     mdb.close()
