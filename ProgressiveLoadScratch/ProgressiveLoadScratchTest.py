@@ -133,6 +133,8 @@ def ScratchModelSetup(
         previous="Initial",
         timePeriod=C.scratch_time,
         nlgeom=ON,
+        linearBulkViscosity=0.06,
+        quadBulkViscosity=1.4,
     )
 
     # Fixed constraint on the bottom two faces
@@ -184,6 +186,17 @@ def ScratchModelSetup(
         timeSpan=TOTAL,
     )
 
+    # ScratchModel.ConcentratedForce(
+    #     cf2=-30.0,
+    #     createStepName="ProgressiveScratchStep",
+    #     amplitude="Amp-1",
+    #     distributionType=UNIFORM,
+    #     field="",
+    #     localCsys=None,
+    #     name="Load-1",
+    #     region=IndenterInstance.sets[C.indenter_set_name],
+    # )
+
     ScratchModel.DisplacementBC(
         amplitude="Amp-1",
         createStepName=StepName1,
@@ -195,6 +208,7 @@ def ScratchModelSetup(
         region=IndenterInstance.sets[C.indenter_set_name],
         u1=UNSET,
         u2=C.scratch_depth,
+        # u2=UNSET,
         u3=C.scratch_length,
         ur1=UNSET,
         ur2=UNSET,
@@ -256,6 +270,7 @@ def ScratchModelSetup(
             "PEEQ",
             "RF",
             "S",
+            "E",
             "SVAVG",
             "U",
             "COORD",
@@ -323,11 +338,18 @@ def ScratchModelSetup(
     )
     # ScratchModel.interactionProperties["IntProp-1"].NormalBehavior(
     #     constraintEnforcementMethod=DEFAULT,
-    #     contactStiffnessScaleFactor=2.0,
-    #     initialStiffnessScaleFactor=1.0,
+    #     contactStiffnessScaleFactor=2,
+    #     initialStiffnessScaleFactor=1,
     #     overclosureFactor=1.0,
     #     overclosureMeasure=0.0,
     #     pressureOverclosure=SCALE_FACTOR,
+    # )
+
+    # ScratchModel.interactionProperties["IntProp-1"].Damping(
+    #     clearanceDependence=STEP,
+    #     definition=DAMPING_COEFFICIENT,
+    #     table=((0.05,),),
+    #     tangentFraction=DEFAULT,
     # )
 
     ScratchModelAssembly.Surface(
@@ -338,6 +360,25 @@ def ScratchModelSetup(
         ),
     )
 
+    # elemsInBox = SubstrateInstance.elements.getByBoundingBox(
+    #     C.xs1 - 0.1,
+    #     C.ys2 - C.dpo_y - 0.1,
+    #     C.zs1 - 0.1,
+    #     C.xs1 + C.dpo_x + 0.1,
+    #     C.ys2 + 0.1,
+    #     C.zs2 + 0.1,
+    # )
+
+    # slaveSurfaceName = "s_Surf-1"
+    # ScratchModelAssembly.Surface(
+    #     name=slaveSurfaceName,
+    #     face1Elements=elemsInBox,
+    #     face2Elements=elemsInBox,
+    #     face3Elements=elemsInBox,
+    #     face4Elements=elemsInBox,
+    #     face5Elements=elemsInBox,
+    #     face6Elements=elemsInBox,
+    # )
     ScratchModelAssembly.Surface(
         name=C.slave_surface_name,
         side1Faces=SubstrateInstance.faces.findAt(
@@ -373,32 +414,32 @@ def ScratchModelSetup(
         nodes=ScratchModelAssembly.allSurfaces[C.slave_surface_name].nodes,
     )
 
-    if include_wear:
-        use_ALE = True  # Wear should be used with ALE
-        ScratchModel.WearProperty(
-            name="IntProp-2",
-            dependencies=0,
-            fricCoefDependency=ON,
-            unitlessWearCoefDependency=OFF,
-            surfaceWearDistanceDependency=OFF,
-            property=((0.1,),),  # Initial value, is updated later.
-            # referenceStress=150.0,
-        )
+    # if include_wear:
+    #     use_ALE = True  # Wear should be used with ALE
+    #     ScratchModel.WearProperty(
+    #         name="IntProp-2",
+    #         dependencies=0,
+    #         fricCoefDependency=ON,
+    #         unitlessWearCoefDependency=OFF,
+    #         surfaceWearDistanceDependency=OFF,
+    #         property=((0.1,),),  # Initial value, is updated later.
+    #         # referenceStress=150.0,
+    #     )
 
-        ScratchModel.interactions["Int-1"].wearSurfacePropertyAssignments.appendInStep(
-            assignments=(
-                (
-                    ScratchModelAssembly.surfaces[C.slave_surface_name],
-                    "IntProp-2",
-                ),
-            ),
-            stepName="Initial",
-        )
-        ScratchModel.interactions[
-            "Int-1"
-        ].wearSurfacePropertyAssignments.changeValuesInStep(
-            index=0, stepName="Initial", value="IntProp-2"
-        )
+    #     ScratchModel.interactions["Int-1"].wearSurfacePropertyAssignments.appendInStep(
+    #         assignments=(
+    #             (
+    #                 ScratchModelAssembly.surfaces[C.slave_surface_name],
+    #                 "IntProp-2",
+    #             ),
+    #         ),
+    #         stepName="Initial",
+    #     )
+    #     ScratchModel.interactions[
+    #         "Int-1"
+    #     ].wearSurfacePropertyAssignments.changeValuesInStep(
+    #         index=0, stepName="Initial", value="IntProp-2"
+    #     )
 
     if use_ALE:
 
@@ -414,26 +455,31 @@ def ScratchModelSetup(
 
         ScratchModelAssembly.Set(
             name="ALE_Domain",
-            faces=SubstrateInstance.faces.findAt(
-                ((C.xs1 + C.dpo_x / 2.0, C.ys2, (C.zs1 + C.zs2) / 2.0),)
-            ),
-            # cells=SubstrateInstance.cells.findAt(
-            #     ((C.xs1, C.ys2, (C.zs1 + C.zs2) / 2.0),),
-            #     # ((C.xs1, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+            # faces=SubstrateInstance.faces.findAt(
+            #     ((C.xs1 + C.dpo_x / 2.0, C.ys2, (C.zs1 + C.zs2) / 2.0),)
             # ),
+            cells=SubstrateInstance.cells.findAt(
+                ((C.xs1, C.ys2, (C.zs1 + C.zs2) / 2.0),),
+                ((C.xs1, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+                ((C.xs2, C.ys1, (C.zs1 + C.zs2) / 2.0),),
+                ((C.xs1, C.ys1, C.zs1),),
+                ((C.xs2, C.ys1, C.zs1),),
+                ((C.xs1, C.ys1, C.zs2),),
+                ((C.xs2, C.ys1, C.zs2),),
+            ),
         )
         ScratchModel.steps[StepName1].AdaptiveMeshDomain(
             controls="Ada-1",
-            meshSweeps=5,
+            meshSweeps=1,
             frequency=20,
             # initialMeshSweeps=5,
             region=ScratchModelAssembly.sets["ALE_Domain"],
         )
         ScratchModel.steps[StepName2].AdaptiveMeshDomain(
             controls="Ada-1",
-            meshSweeps=5,
-            frequency=20,
-            initialMeshSweeps=5,
+            meshSweeps=1,
+            frequency=400,
+            initialMeshSweeps=1,
             region=ScratchModelAssembly.sets["ALE_Domain"],
         )
 

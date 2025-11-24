@@ -46,8 +46,8 @@ zs2 = 3.00  # z coordinate of second point - extrude depth
 
 
 # For partitioning of substrate to allow better meshing
-dpo_x = xs2 / 3.0
-dpo_y = 0.1
+dpo_x = 0.24
+dpo_y = 0.06
 dpo_z = 0.25
 
 
@@ -68,8 +68,8 @@ unload_time = 0.0001  # [s]
 
 
 # Sample output frequencies
-sample_frequency_unloading = unload_time / 5.0
-sample_frequency_scratching = scratch_time / 5.0
+sample_frequency_unloading = unload_time / 20.0
+sample_frequency_scratching = scratch_time / 20.0
 sample_force_frequency = scratch_time / 100.0
 
 
